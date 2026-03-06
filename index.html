@@ -1,0 +1,183 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wiki 富文本</title>
+  <link rel="stylesheet" href="./css/app.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="panel sidebar">
+      <div class="sidebar-top">
+        <h2>Wiki 页面树</h2>
+        <div class="row">
+          <button id="quickCreatePageBtn" class="btn-primary grow">+ 新建页面</button>
+        </div>
+        <div class="row">
+          <button id="importJsonBtn" class="grow">导入 JSON</button>
+          <button id="exportJsonBtn" class="grow">导出 JSON</button>
+        </div>
+        <div class="section-title">操作提示</div>
+        <div class="sidebar-hint">右键可打开/重命名/删除/新建子页；拖拽页面到目标页面可调整层级和顺序。</div>
+        <div class="tree-mode-bar">
+          <button id="showPagesBtn" class="mode-tab active" type="button">页面树</button>
+          <button id="showTrashBtn" class="mode-tab" type="button">回收站</button>
+        </div>
+      </div>
+      <div id="pageList" class="page-list"></div>
+      <div id="trashList" class="page-list hidden"></div>
+    </aside>
+
+    <section class="panel main">
+      <div class="mode-switch-bar">
+        <span id="pagePath" class="page-path"></span>
+        <button id="modeToggleBtn" type="button">阅读</button>
+      </div>
+      <div class="toolbar">
+        <button id="undoBtn" class="icon-btn" title="撤销 Ctrl+Z"><span class="i">↶</span><span>撤销</span></button>
+        <button id="redoBtn" class="icon-btn" title="前进 Ctrl+Y / Ctrl+Shift+Z"><span class="i">↷</span><span>前进</span></button>
+        <span class="tool-divider"></span>
+        <select id="formatBlock">
+          <option value="P">正文</option>
+          <option value="H1">标题 1</option>
+          <option value="H2">标题 2</option>
+          <option value="H3">标题 3</option>
+        </select>
+        <span class="tool-divider"></span>
+        <button data-cmd="bold"><b>B</b></button>
+        <button data-cmd="italic"><i>I</i></button>
+        <button data-cmd="underline"><u>U</u></button>
+        <span class="tool-divider"></span>
+        <button id="fontSizeBtn" class="icon-btn"><span class="i">↕</span><span>字号</span></button>
+        <button id="colorBtn" class="icon-btn"><span class="i">🎨</span><span>颜色</span></button>
+        <span class="tool-divider"></span>
+        <button id="insertWikiLinkBtn" class="icon-btn"><span class="i">🧭</span><span>Wiki</span></button>
+        <button id="imageUrlBtn" class="icon-btn"><span class="i">🖼</span><span>图片</span></button>
+        <button id="insertTableBtn" class="icon-btn"><span class="i">▦</span><span>表格</span></button>
+        <span class="tool-divider"></span>
+        <button id="clearFormatBtn" class="icon-btn"><span class="i">🧹</span><span>正文</span></button>
+      </div>
+
+      <div class="workspace">
+        <div class="editor-wrap">
+          <div id="editor" class="editor" contenteditable="true"></div>
+          <div class="meta">
+            <span id="counter">0 字</span>
+            <span>右键编辑区可粘贴剪贴板图片（也支持 Ctrl+V）</span>
+            <span id="status" class="status inline-status"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="contextMenu" class="context-menu">
+    <button id="pasteImageBtn" type="button">粘贴剪贴板图片</button>
+  </div>
+
+  <div id="pageItemMenu" class="context-menu">
+    <button id="pageMenuOpenBtn" type="button">打开页面</button>
+    <button id="pageMenuNewChildBtn" type="button">新建子页面</button>
+    <button id="pageMenuRenameBtn" type="button">重命名页面</button>
+    <button id="pageMenuMoveRootBtn" type="button">移动到顶级</button>
+    <button id="pageMenuDeleteBtn" type="button">删除页面</button>
+  </div>
+
+  <div id="trashItemMenu" class="context-menu">
+    <button id="trashMenuRestoreBtn" type="button">恢复</button>
+    <button id="trashMenuDeleteBtn" type="button">彻底删除</button>
+  </div>
+  <div id="importModeMenu" class="context-menu">
+    <button id="importMergeBtn" type="button">合并导入</button>
+    <button id="importReplaceBtn" type="button">覆盖导入</button>
+  </div>
+
+  <div id="tableToolBar" class="table-toolbar">
+    <button id="tableExitBtn" type="button">退出</button>
+    <button id="tableInsertRowBtn" type="button">插入行</button>
+    <button id="tableDeleteRowBtn" type="button">删除行</button>
+    <button id="tableInsertColBtn" type="button">插入列</button>
+    <button id="tableDeleteColBtn" type="button">删除列</button>
+    <button id="tableDeleteBtn" type="button">删除表格</button>
+  </div>
+
+  <div id="imageToolMenu" class="image-tool-menu">
+    <div class="image-tool-title">图片设置</div>
+    <div class="image-tool-row">
+      <button id="imageDefaultBtn" type="button">默认大小</button>
+      <input id="imageWidthInput" type="number" min="1" step="1" placeholder="宽(px)" />
+      <input id="imageHeightInput" type="number" min="1" step="1" placeholder="高(px)" />
+      <button id="imageResizeApplyBtn" type="button">应用尺寸</button>
+    </div>
+  </div>
+
+  <div id="colorPanel" class="emoji-panel">
+    <div class="color-panel-title">选择文字颜色</div>
+    <input id="colorPickerPanel" class="color-panel-picker" type="color" value="#1f2a39" />
+    <div class="color-presets" id="colorPresetsPanel">
+      <button class="color-chip" type="button" data-color="#1f2a39" title="默认黑" style="background:#1f2a39;"></button>
+      <button class="color-chip" type="button" data-color="#374151" title="石墨灰" style="background:#374151;"></button>
+      <button class="color-chip" type="button" data-color="#6b7280" title="中性灰" style="background:#6b7280;"></button>
+      <button class="color-chip" type="button" data-color="#e02424" title="红色" style="background:#e02424;"></button>
+      <button class="color-chip" type="button" data-color="#dc2626" title="正红" style="background:#dc2626;"></button>
+      <button class="color-chip" type="button" data-color="#be123c" title="玫红" style="background:#be123c;"></button>
+      <button class="color-chip" type="button" data-color="#9d174d" title="深玫红" style="background:#9d174d;"></button>
+      <button class="color-chip" type="button" data-color="#f59e0b" title="橙色" style="background:#f59e0b;"></button>
+      <button class="color-chip" type="button" data-color="#ea580c" title="深橙" style="background:#ea580c;"></button>
+      <button class="color-chip" type="button" data-color="#ca8a04" title="金黄" style="background:#ca8a04;"></button>
+      <button class="color-chip" type="button" data-color="#eab308" title="亮黄" style="background:#eab308;"></button>
+      <button class="color-chip" type="button" data-color="#16a34a" title="绿色" style="background:#16a34a;"></button>
+      <button class="color-chip" type="button" data-color="#15803d" title="深绿" style="background:#15803d;"></button>
+      <button class="color-chip" type="button" data-color="#22c55e" title="亮绿" style="background:#22c55e;"></button>
+      <button class="color-chip" type="button" data-color="#0f766e" title="青绿" style="background:#0f766e;"></button>
+      <button class="color-chip" type="button" data-color="#2563eb" title="蓝色" style="background:#2563eb;"></button>
+      <button class="color-chip" type="button" data-color="#1d4ed8" title="深蓝" style="background:#1d4ed8;"></button>
+      <button class="color-chip" type="button" data-color="#0ea5e9" title="天蓝" style="background:#0ea5e9;"></button>
+      <button class="color-chip" type="button" data-color="#0369a1" title="湖蓝" style="background:#0369a1;"></button>
+      <button class="color-chip" type="button" data-color="#7c3aed" title="紫色" style="background:#7c3aed;"></button>
+      <button class="color-chip" type="button" data-color="#9333ea" title="亮紫" style="background:#9333ea;"></button>
+      <button class="color-chip" type="button" data-color="#6d28d9" title="深紫" style="background:#6d28d9;"></button>
+      <button class="color-chip" type="button" data-color="#c026d3" title="品红" style="background:#c026d3;"></button>
+      <button class="color-chip" type="button" data-color="#7f1d1d" title="棕红" style="background:#7f1d1d;"></button>
+    </div>
+  </div>
+
+  <div id="fontSizePanel" class="emoji-panel font-size-panel">
+    <div class="color-panel-title">选择字号（px）</div>
+    <div id="fontSizeList" class="font-size-list">
+      <button class="font-size-item" type="button" data-size="12">12</button>
+      <button class="font-size-item" type="button" data-size="14">14</button>
+      <button class="font-size-item" type="button" data-size="16">16</button>
+      <button class="font-size-item" type="button" data-size="18">18</button>
+      <button class="font-size-item" type="button" data-size="20">20</button>
+      <button class="font-size-item" type="button" data-size="22">22</button>
+      <button class="font-size-item" type="button" data-size="24">24</button>
+      <button class="font-size-item" type="button" data-size="28">28</button>
+      <button class="font-size-item" type="button" data-size="32">32</button>
+      <button class="font-size-item" type="button" data-size="36">36</button>
+      <button class="font-size-item" type="button" data-size="42">42</button>
+      <button class="font-size-item" type="button" data-size="48">48</button>
+    </div>
+    <div class="font-size-custom">
+      <input id="fontSizeCustomInput" class="size-input" type="number" min="1" step="1" value="16" title="自定义字号（px）" />
+      <button id="fontSizeCustomApplyBtn" type="button">应用</button>
+    </div>
+  </div>
+
+  <div id="tablePanel" class="emoji-panel font-size-panel">
+    <div class="color-panel-title">插入表格</div>
+    <div class="table-custom">
+      <span class="table-label">行</span>
+      <input id="tableRowsInput" class="table-input" type="number" min="1" max="20" value="3" />
+      <span class="table-label">列</span>
+      <input id="tableColsInput" class="table-input" type="number" min="1" max="12" value="3" />
+      <button id="tableCustomApplyBtn" type="button">应用</button>
+    </div>
+  </div>
+
+  <input id="importJsonInput" type="file" accept="application/json,.json" style="display:none;" />
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
