@@ -45,6 +45,11 @@
   colorPanel: document.getElementById("colorPanel"),
   colorPickerPanel: document.getElementById("colorPickerPanel"),
   colorPresetsPanel: document.getElementById("colorPresetsPanel"),
+  bgColorBtn: document.getElementById("bgColorBtn"),
+  bgColorPanel: document.getElementById("bgColorPanel"),
+  clearBgColorBtn: document.getElementById("clearBgColorBtn"),
+  bgColorPickerPanel: document.getElementById("bgColorPickerPanel"),
+  bgColorPresetsPanel: document.getElementById("bgColorPresetsPanel"),
 
   fontSizeBtn: document.getElementById("fontSizeBtn"),
   fontSizePanel: document.getElementById("fontSizePanel"),

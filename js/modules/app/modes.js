@@ -1,5 +1,24 @@
-export function createModes({ dom, editor }) {
-  let isReadMode = true;
+﻿export function createModes({ dom, editor }) {
+  const MODE_STORAGE_KEY = "wiki-mode-v1";
+  const MODE_READ = "read";
+  const MODE_EDIT = "edit";
+
+  function loadModeFromStorage() {
+    try {
+      const raw = localStorage.getItem(MODE_STORAGE_KEY);
+      if (raw === MODE_EDIT) return false;
+      if (raw === MODE_READ) return true;
+    } catch {}
+    return true;
+  }
+
+  function saveModeToStorage() {
+    try {
+      localStorage.setItem(MODE_STORAGE_KEY, isReadMode ? MODE_READ : MODE_EDIT);
+    } catch {}
+  }
+
+  let isReadMode = loadModeFromStorage();
   let treeMode = "pages";
 
   function applyTreeMode() {
@@ -20,9 +39,11 @@ export function createModes({ dom, editor }) {
       dom.tableToolBar.style.display = "none";
       dom.imageToolMenu.style.display = "none";
       dom.colorPanel.style.display = "none";
+      dom.bgColorPanel.style.display = "none";
       dom.fontSizePanel.style.display = "none";
       dom.tablePanel.style.display = "none";
     }
+    saveModeToStorage();
   }
 
   function switchToEditMode() {

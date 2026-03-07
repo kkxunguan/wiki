@@ -1,6 +1,7 @@
 ﻿export function createPanels(dom) {
   const panelMap = {
     color: { btn: dom.colorBtn, panel: dom.colorPanel },
+    bgColor: { btn: dom.bgColorBtn, panel: dom.bgColorPanel },
     fontSize: { btn: dom.fontSizeBtn, panel: dom.fontSizePanel },
     table: { btn: dom.insertTableBtn, panel: dom.tablePanel }
   };

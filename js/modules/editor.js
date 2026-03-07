@@ -1,6 +1,50 @@
 ﻿export function createEditor({ dom, state, onContentChanged, queueAutoSave, setStatus }) {
   let selectedImage = null;
+  let selectedImageAspectRatio = 0;
+  let draggingFromImageSizeInput = false;
   let readOnly = false;
+  const BLOCK_STYLE_PRESETS = {
+    P: {
+      fontSize: "16px",
+      fontWeight: "400",
+      color: "#000000",
+      backgroundColor: "transparent",
+      lineHeight: "1.6",
+      padding: "0",
+      borderRadius: "0",
+      margin: "0 0 10px 0"
+    },
+    H1: {
+      fontSize: "32px",
+      fontWeight: "700",
+      color: "#000000",
+      backgroundColor: "transparent",
+      lineHeight: "1.6",
+      padding: "0",
+      borderRadius: "0",
+      margin: "14px 0 10px 0"
+    },
+    H2: {
+      fontSize: "26px",
+      fontWeight: "700",
+      color: "#000000",
+      backgroundColor: "transparent",
+      lineHeight: "1.6",
+      padding: "0",
+      borderRadius: "0",
+      margin: "12px 0 8px 0"
+    },
+    H3: {
+      fontSize: "21px",
+      fontWeight: "600",
+      color: "#000000",
+      backgroundColor: "transparent",
+      lineHeight: "1.6",
+      padding: "0",
+      borderRadius: "0",
+      margin: "10px 0 8px 0"
+    }
+  };
 
   function saveSelectionIfInsideEditor() {
     const sel = window.getSelection();
@@ -149,6 +193,103 @@
     setStatus("已转换为普通正文文本");
   }
 
+  function clearBackgroundColor() {
+    if (readOnly) return;
+    dom.editor.focus();
+    restoreSavedSelection();
+    document.execCommand("hiliteColor", false, "transparent");
+    saveSelectionIfInsideEditor();
+    onContentChanged();
+    queueAutoSave();
+    setStatus("已清除底色");
+  }
+
+  function collectSelectedBlocks() {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return [];
+    const range = sel.getRangeAt(0);
+    const blockSelector = "p,h1,h2,h3";
+    const container = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+      ? range.commonAncestorContainer
+      : range.commonAncestorContainer.parentElement;
+    if (!container) return [];
+
+    const blocks = [];
+    if (container.matches && container.matches(blockSelector)) blocks.push(container);
+    if (container.querySelectorAll) {
+      container.querySelectorAll(blockSelector).forEach((el) => {
+        if (!dom.editor.contains(el)) return;
+        try {
+          if (range.intersectsNode(el)) blocks.push(el);
+        } catch {}
+      });
+    }
+
+    if (!blocks.length) {
+      const anchor = (range.startContainer.nodeType === Node.ELEMENT_NODE
+        ? range.startContainer
+        : range.startContainer.parentElement);
+      const fallback = anchor ? anchor.closest(blockSelector) : null;
+      if (fallback && dom.editor.contains(fallback)) blocks.push(fallback);
+    }
+
+    return Array.from(new Set(blocks));
+  }
+
+  function applyPresetStyleToBlock(block, fallbackTag = "P") {
+    if (!block || !dom.editor.contains(block)) return;
+    const tag = (block.tagName || fallbackTag || "P").toUpperCase();
+    const preset = BLOCK_STYLE_PRESETS[tag] || BLOCK_STYLE_PRESETS[fallbackTag] || BLOCK_STYLE_PRESETS.P;
+    Object.keys(preset).forEach((styleKey) => {
+      block.style[styleKey] = preset[styleKey];
+    });
+  }
+
+  function rebuildBlockAsPlainText(block, formatTag = "P") {
+    if (!block || !block.parentNode) return null;
+    const text = (block.textContent || "")
+      .replace(/\u00a0/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    const next = document.createElement(String(formatTag || "P").toLowerCase());
+    if (text) next.textContent = text;
+    else next.appendChild(document.createElement("br"));
+    block.parentNode.replaceChild(next, block);
+    return next;
+  }
+
+  function applyBlockPreset(rawTag = "P") {
+    if (readOnly) return;
+    const formatTag = String(rawTag || "P").toUpperCase();
+    dom.editor.focus();
+    restoreSavedSelection();
+    document.execCommand("formatBlock", false, formatTag);
+
+    const blocks = collectSelectedBlocks();
+    const normalizedBlocks = blocks
+      .map((block) => rebuildBlockAsPlainText(block, formatTag))
+      .filter(Boolean);
+    normalizedBlocks.forEach((block) => applyPresetStyleToBlock(block, formatTag));
+
+    if (normalizedBlocks.length) {
+      const sel = window.getSelection();
+      if (sel) {
+        const range = document.createRange();
+        range.selectNodeContents(normalizedBlocks[normalizedBlocks.length - 1]);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    }
+
+    saveSelectionIfInsideEditor();
+    onContentChanged();
+    queueAutoSave();
+
+    const labelMap = { P: "正文", H1: "标题1", H2: "标题2", H3: "标题3" };
+    setStatus(`已应用${labelMap[formatTag] || formatTag}预设样式`);
+  }
+
   async function pasteImageFromClipboard() {
     if (readOnly) return;
     if (!navigator.clipboard || !navigator.clipboard.read) {
@@ -175,6 +316,61 @@
     }
   }
 
+  function insertPlainTextAtCursor(rawText) {
+    const text = String(rawText || "");
+    if (!text) return false;
+
+    dom.editor.focus();
+    restoreSavedSelection();
+    const sel = window.getSelection();
+    if (!sel) return false;
+
+    if (sel.rangeCount === 0) {
+      const fallbackRange = document.createRange();
+      fallbackRange.selectNodeContents(dom.editor);
+      fallbackRange.collapse(false);
+      sel.addRange(fallbackRange);
+    }
+
+    let range = sel.getRangeAt(0);
+    if (!dom.editor.contains(range.commonAncestorContainer)) {
+      const fallbackRange = document.createRange();
+      fallbackRange.selectNodeContents(dom.editor);
+      fallbackRange.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(fallbackRange);
+      range = fallbackRange;
+    }
+
+    const normalized = text
+      .replace(/\u00a0/g, " ")
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n");
+
+    range.deleteContents();
+    const lines = normalized.split("\n");
+    const fragment = document.createDocumentFragment();
+    lines.forEach((line, index) => {
+      if (index > 0) fragment.appendChild(document.createElement("br"));
+      if (line) fragment.appendChild(document.createTextNode(line));
+    });
+
+    const caret = document.createTextNode("");
+    fragment.appendChild(caret);
+    range.insertNode(fragment);
+
+    const caretRange = document.createRange();
+    caretRange.setStartAfter(caret);
+    caretRange.collapse(true);
+    if (caret.parentNode) caret.parentNode.removeChild(caret);
+    sel.removeAllRanges();
+    sel.addRange(caretRange);
+
+    saveSelectionIfInsideEditor();
+    onContentChanged();
+    return true;
+  }
+
   function handlePasteEvent(e) {
     if (readOnly) {
       e.preventDefault();
@@ -182,6 +378,7 @@
     }
     const cd = e.clipboardData;
     if (!cd || !cd.items) return;
+
     for (const item of cd.items) {
       if (!item.type.startsWith("image/")) continue;
       const file = item.getAsFile();
@@ -195,6 +392,7 @@
       reader.readAsDataURL(file);
       return;
     }
+    // 文本粘贴保留原网页格式，交给浏览器默认行为处理。
   }
 
   function isEditorContext() {
@@ -225,8 +423,20 @@
       e.preventDefault();
     });
     dom.editor.addEventListener("drop", (e) => {
-      if (!readOnly) return;
+      if (readOnly) {
+        e.preventDefault();
+        return;
+      }
+      const dt = e.dataTransfer;
+      if (!dt) return;
+      const hasFiles = Boolean(dt.files && dt.files.length);
+      if (hasFiles) return;
+      const text = dt.getData("text/plain");
+      if (!text) return;
       e.preventDefault();
+      insertPlainTextAtCursor(text);
+      queueAutoSave();
+      setStatus("已插入纯文本");
     });
   }
 
@@ -248,16 +458,78 @@
     dom.imageToolMenu.style.top = `${top}px`;
   }
 
+  function parsePositiveNumber(raw) {
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value <= 0) return 0;
+    return value;
+  }
+
+  function getCurrentImageAspectRatio(img) {
+    if (!img) return 0;
+    const styleWidth = parsePositiveNumber(parseInt(img.style.width || "", 10));
+    const styleHeight = parsePositiveNumber(parseInt(img.style.height || "", 10));
+    if (styleWidth && styleHeight) return styleWidth / styleHeight;
+
+    const attrWidth = parsePositiveNumber(parseInt(img.getAttribute("width") || "", 10));
+    const attrHeight = parsePositiveNumber(parseInt(img.getAttribute("height") || "", 10));
+    if (attrWidth && attrHeight) return attrWidth / attrHeight;
+
+    const rect = img.getBoundingClientRect();
+    const renderedWidth = parsePositiveNumber(Math.round(rect.width));
+    const renderedHeight = parsePositiveNumber(Math.round(rect.height));
+    if (renderedWidth && renderedHeight) return renderedWidth / renderedHeight;
+
+    const naturalWidth = parsePositiveNumber(img.naturalWidth);
+    const naturalHeight = parsePositiveNumber(img.naturalHeight);
+    if (naturalWidth && naturalHeight) return naturalWidth / naturalHeight;
+    return 0;
+  }
+
+  function syncImageSizeInputs(img) {
+    if (!img) return;
+    const rect = img.getBoundingClientRect();
+    const styleWidth = parseInt(img.style.width || "", 10);
+    const styleHeight = parseInt(img.style.height || "", 10);
+    const attrWidth = parseInt(img.getAttribute("width") || "", 10);
+    const attrHeight = parseInt(img.getAttribute("height") || "", 10);
+    const renderedWidth = Math.round(rect.width);
+    const renderedHeight = Math.round(rect.height);
+
+    const width = [styleWidth, attrWidth, renderedWidth, img.naturalWidth]
+      .find((v) => Number.isFinite(v) && v > 0);
+    const height = [styleHeight, attrHeight, renderedHeight, img.naturalHeight]
+      .find((v) => Number.isFinite(v) && v > 0);
+
+    dom.imageWidthInput.value = width ? String(width) : "";
+    dom.imageHeightInput.value = height ? String(height) : "";
+    if (width && height) selectedImageAspectRatio = width / height;
+    else selectedImageAspectRatio = getCurrentImageAspectRatio(img);
+  }
+
+  function syncHeightFromWidthInput() {
+    if (!selectedImage) return;
+    const ratio = selectedImageAspectRatio || getCurrentImageAspectRatio(selectedImage);
+    if (!ratio) return;
+    const width = parsePositiveNumber(dom.imageWidthInput.value);
+    if (!width) return;
+    dom.imageHeightInput.value = String(Math.round(width / ratio));
+  }
+
+  function syncWidthFromHeightInput() {
+    if (!selectedImage) return;
+    const ratio = selectedImageAspectRatio || getCurrentImageAspectRatio(selectedImage);
+    if (!ratio) return;
+    const height = parsePositiveNumber(dom.imageHeightInput.value);
+    if (!height) return;
+    dom.imageWidthInput.value = String(Math.round(height * ratio));
+  }
+
   function showImageToolMenu(img) {
     if (readOnly || !img || !dom.editor.contains(img)) return;
     if (selectedImage && selectedImage !== img) selectedImage.classList.remove("image-selected");
     selectedImage = img;
     selectedImage.classList.add("image-selected");
-
-    const width = parseInt(selectedImage.style.width || "", 10);
-    const height = parseInt(selectedImage.style.height || "", 10);
-    dom.imageWidthInput.value = Number.isFinite(width) && width > 0 ? String(width) : "";
-    dom.imageHeightInput.value = Number.isFinite(height) && height > 0 ? String(height) : "";
+    syncImageSizeInputs(selectedImage);
 
     positionImageToolMenu(img);
     dom.imageToolMenu.style.display = "block";
@@ -269,6 +541,7 @@
     selectedImage.style.height = "";
     selectedImage.removeAttribute("width");
     selectedImage.removeAttribute("height");
+    syncImageSizeInputs(selectedImage);
     onContentChanged();
     queueAutoSave();
     setStatus("图片已恢复默认大小");
@@ -276,21 +549,57 @@
 
   function applyImageCustomSize() {
     if (readOnly || !selectedImage || !dom.editor.contains(selectedImage)) return;
-    const width = Number(dom.imageWidthInput.value);
-    const height = Number(dom.imageHeightInput.value);
-    if (!Number.isFinite(width) || width <= 0) {
-      setStatus("请输入有效的图片宽度(px)");
+    const ratio = selectedImageAspectRatio || getCurrentImageAspectRatio(selectedImage);
+    if (!ratio) {
+      setStatus("无法获取图片比例，请重新选择图片");
       return;
     }
-    selectedImage.style.width = `${Math.round(width)}px`;
-    if (Number.isFinite(height) && height > 0) selectedImage.style.height = `${Math.round(height)}px`;
-    else selectedImage.style.height = "auto";
+    const widthInput = parsePositiveNumber(dom.imageWidthInput.value);
+    const heightInput = parsePositiveNumber(dom.imageHeightInput.value);
+    if (!widthInput && !heightInput) {
+      setStatus("请输入有效的图片宽度或高度(px)");
+      return;
+    }
+
+    const targetWidth = widthInput || Math.round(heightInput * ratio);
+    const targetHeight = Math.max(1, Math.round(targetWidth / ratio));
+    selectedImage.style.width = `${Math.round(targetWidth)}px`;
+    selectedImage.style.height = `${targetHeight}px`;
+    syncImageSizeInputs(selectedImage);
     onContentChanged();
     queueAutoSave();
-    setStatus("图片尺寸已更新");
+    setStatus("图片尺寸已按等比例更新");
   }
 
   function bindImageTooling() {
+    const blockInputDrag = (e) => {
+      draggingFromImageSizeInput = true;
+      e.preventDefault();
+    };
+    const clearInputDrag = () => {
+      draggingFromImageSizeInput = false;
+    };
+
+    dom.imageWidthInput.setAttribute("draggable", "false");
+    dom.imageHeightInput.setAttribute("draggable", "false");
+    dom.imageWidthInput.addEventListener("dragstart", blockInputDrag);
+    dom.imageHeightInput.addEventListener("dragstart", blockInputDrag);
+    dom.imageWidthInput.addEventListener("drop", blockInputDrag);
+    dom.imageHeightInput.addEventListener("drop", blockInputDrag);
+    document.addEventListener("dragend", clearInputDrag, true);
+    document.addEventListener("mouseup", clearInputDrag, true);
+
+    dom.editor.addEventListener("dragover", (e) => {
+      if (!draggingFromImageSizeInput) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "none";
+    });
+    dom.editor.addEventListener("drop", (e) => {
+      if (!draggingFromImageSizeInput) return;
+      e.preventDefault();
+      clearInputDrag();
+    });
+
     dom.editor.addEventListener("click", (e) => {
       if (readOnly) return;
       const img = e.target.closest("img");
@@ -333,11 +642,17 @@
       e.preventDefault();
       applyImageCustomSize();
     });
+    dom.imageWidthInput.addEventListener("input", () => {
+      syncHeightFromWidthInput();
+    });
 
     dom.imageHeightInput.addEventListener("keydown", (e) => {
       if (e.key !== "Enter") return;
       e.preventDefault();
       applyImageCustomSize();
+    });
+    dom.imageHeightInput.addEventListener("input", () => {
+      syncWidthFromHeightInput();
     });
   }
 
@@ -349,6 +664,8 @@
     insertImageAtCursor,
     applyFontSizePx,
     clearFormattingToPlainText,
+    clearBackgroundColor,
+    applyBlockPreset,
     pasteImageFromClipboard,
     handlePasteEvent,
     isEditorContext,

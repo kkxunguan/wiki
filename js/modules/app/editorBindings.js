@@ -21,7 +21,7 @@ export function createEditorBindings({
 
     dom.formatBlock.addEventListener("change", () => {
       if (editor.isReadOnly()) return;
-      editor.exec("formatBlock", dom.formatBlock.value);
+      editor.applyBlockPreset(dom.formatBlock.value);
     });
 
     dom.undoBtn.addEventListener("click", () => editor.undoEditor());
@@ -51,6 +51,10 @@ export function createEditorBindings({
       if (editor.isReadOnly()) return;
       panels.toggle("color");
     });
+    dom.bgColorBtn.addEventListener("click", () => {
+      if (editor.isReadOnly()) return;
+      panels.toggle("bgColor");
+    });
     dom.fontSizeBtn.addEventListener("click", () => {
       if (editor.isReadOnly()) return;
       panels.toggle("fontSize");
@@ -78,6 +82,29 @@ export function createEditorBindings({
       const chip = e.target.closest(".color-chip");
       if (!chip) return;
       applyColor(chip.getAttribute("data-color"));
+    });
+  }
+
+  function bindBackgroundColorPanel() {
+    document.execCommand("styleWithCSS", false, true);
+
+    const applyBgColor = (color) => {
+      if (!color) return;
+      editor.exec("hiliteColor", color);
+      setStatus(`已设置底色：${color}`);
+      panels.hide("bgColor");
+    };
+
+    dom.bgColorPickerPanel.addEventListener("input", () => applyBgColor(dom.bgColorPickerPanel.value));
+    dom.bgColorPresetsPanel.addEventListener("click", (e) => {
+      const chip = e.target.closest(".color-chip");
+      if (!chip) return;
+      applyBgColor(chip.getAttribute("data-color"));
+    });
+    dom.clearBgColorBtn.addEventListener("click", () => {
+      if (editor.isReadOnly()) return;
+      editor.clearBackgroundColor();
+      panels.hide("bgColor");
     });
   }
 
@@ -181,6 +208,7 @@ export function createEditorBindings({
   function bindAll() {
     bindEditorToolbar();
     bindColorPanel();
+    bindBackgroundColorPanel();
     bindFontSizePanel();
     bindContextMenuAndPaste();
     bindKeyboardShortcuts();
@@ -191,6 +219,7 @@ export function createEditorBindings({
     bindAll,
     bindEditorToolbar,
     bindColorPanel,
+    bindBackgroundColorPanel,
     bindFontSizePanel,
     bindContextMenuAndPaste,
     bindKeyboardShortcuts,

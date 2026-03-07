@@ -8,6 +8,18 @@
   --accent-soft: #e9f1ff;
   --menu-bg: #111827;
   --menu-text: #f9fafb;
+  --preset-p-size: 16px;
+  --preset-p-color: #000000;
+  --preset-p-bg: transparent;
+  --preset-h1-size: 32px;
+  --preset-h1-color: #000000;
+  --preset-h1-bg: transparent;
+  --preset-h2-size: 26px;
+  --preset-h2-color: #000000;
+  --preset-h2-bg: transparent;
+  --preset-h3-size: 21px;
+  --preset-h3-color: #000000;
+  --preset-h3-bg: transparent;
 }
 
 * { box-sizing: border-box; }
@@ -240,6 +252,46 @@ button:hover, select:hover, .page-item:hover { border-color: var(--accent); }
   overflow-y: auto;
   overflow-x: hidden;
 }
+.editor p, .preview p {
+  font-size: var(--preset-p-size);
+  font-weight: 400;
+  color: var(--preset-p-color);
+  background: var(--preset-p-bg);
+  line-height: 1.6;
+  padding: 0;
+  border-radius: 0;
+  margin: 0 0 10px;
+}
+.editor h1, .preview h1 {
+  font-size: var(--preset-h1-size);
+  font-weight: 700;
+  color: var(--preset-h1-color);
+  background: var(--preset-h1-bg);
+  line-height: 1.6;
+  padding: 0;
+  border-radius: 0;
+  margin: 14px 0 10px;
+}
+.editor h2, .preview h2 {
+  font-size: var(--preset-h2-size);
+  font-weight: 700;
+  color: var(--preset-h2-color);
+  background: var(--preset-h2-bg);
+  line-height: 1.6;
+  padding: 0;
+  border-radius: 0;
+  margin: 12px 0 8px;
+}
+.editor h3, .preview h3 {
+  font-size: var(--preset-h3-size);
+  font-weight: 600;
+  color: var(--preset-h3-color);
+  background: var(--preset-h3-bg);
+  line-height: 1.6;
+  padding: 0;
+  border-radius: 0;
+  margin: 10px 0 8px;
+}
 .editor:empty::before { content: "输入 [[页面名]] 可创建 Wiki 内链"; color: #8d9ab1; }
 .editor img, .preview img { max-width: 100%; height: auto; border-radius: 4.8px; }
 .editor img.image-selected {
@@ -342,6 +394,7 @@ button:hover, select:hover, .page-item:hover { border-color: var(--accent); }
 .emoji-item:hover { border-color: var(--line); background: #f7faff; }
 .color-panel-title { font-size: 9.6px; color: var(--muted); margin: 0 0 4.8px; }
 .color-panel-picker { width: 100%; height: 27.2px; padding: 2px; margin-bottom: 6.4px; border-radius: 6.4px; border: 1px solid var(--line); cursor: pointer; }
+.bg-clear-btn { width: 100%; margin-bottom: 6.4px; }
 
 body.read-mode .toolbar { display: none; }
 body.read-mode .emoji-panel,
