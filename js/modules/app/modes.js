@@ -36,14 +36,6 @@ export function createModes({ dom, editor }) {
     document.body.classList.toggle("read-mode", isReadMode);
     editor.setReadOnly(isReadMode);
     dom.modeToggleBtn.textContent = isReadMode ? t("mode.edit") : t("mode.read");
-    if (isReadMode) {
-      if (dom.contextMenu) dom.contextMenu.style.display = "none";
-      if (dom.tableToolBar) dom.tableToolBar.style.display = "none";
-      if (dom.imageToolMenu) dom.imageToolMenu.style.display = "none";
-      if (dom.palettePanel) dom.palettePanel.style.display = "none";
-      if (dom.fontSizePanel) dom.fontSizePanel.style.display = "none";
-      if (dom.tablePanel) dom.tablePanel.style.display = "none";
-    }
     saveModeToStorage();
   }
 

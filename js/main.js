@@ -39,7 +39,6 @@ async function init() {
   const onContentChanged = () => {
     if (!editor || !wiki) return;
     editor.updateCounter();
-    wiki.renderPreview();
     queueAutoSave();
   };
 
@@ -50,7 +49,6 @@ async function init() {
     savePages: (pages) => savePages(STORAGE_KEY, pages),
     saveTrash: (trash) => saveJson(STORAGE_TRASH_KEY, trash),
     onContentChanged,
-    queueAutoSave,
     setStatus
   });
 
@@ -68,6 +66,7 @@ async function init() {
     dom,
     state,
     wiki,
+    editor,
     modes,
     setStatus,
     showMenuInViewport,
@@ -112,7 +111,6 @@ async function init() {
   i18nBindings.bindAll();
   versionBindings.bindAll();
 
-  wiki.bindPreviewLinks();
   wiki.bindTrashActions();
   wiki.renderPageList();
   wiki.renderTrashList();

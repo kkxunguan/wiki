@@ -4,12 +4,23 @@ export function createWikiBindings({
   dom,
   state,
   wiki,
+  editor,
   modes,
   setStatus,
   showMenuInViewport,
   exportAllToJson,
   importFromJsonText
 }) {
+  function focusEditor(atEnd = false) {
+    if (editor && typeof editor.focus === "function") {
+      editor.focus(atEnd);
+      return;
+    }
+    if (dom.editor && typeof dom.editor.focus === "function") {
+      dom.editor.focus();
+    }
+  }
+
   function bindWikiActions() {
     dom.trashList.addEventListener("click", (e) => {
       if (!e.target.closest("[data-trash-name]")) return;
@@ -26,7 +37,7 @@ export function createWikiBindings({
       if (!name) return;
       wiki.openPage(name);
       modes.switchToEditMode();
-      dom.editor.focus();
+      focusEditor(true);
     });
 
     dom.exportJsonBtn.addEventListener("click", () => {
@@ -70,7 +81,7 @@ export function createWikiBindings({
         return;
       }
       modes.toggleMode();
-      if (modes.getIsReadMode()) dom.editor.focus();
+      if (modes.getIsReadMode()) focusEditor(false);
     });
 
     dom.showPagesBtn.addEventListener("click", () => {
@@ -272,7 +283,7 @@ export function createWikiBindings({
       if (!name) return;
       wiki.openPage(name);
       modes.switchToEditMode();
-      dom.editor.focus();
+      focusEditor(true);
       dom.pageItemMenu.style.display = "none";
     });
 

@@ -1,24 +1,26 @@
 ﻿export const dom = {
   editorWrap: document.getElementById("editorWrap"),
   editor: document.getElementById("editor"),
-  preview: document.getElementById("preview"),
-  toc: document.getElementById("toc"),
+  editorToolbar: document.getElementById("editorToolbar"),
+
   pageList: document.getElementById("pageList"),
   trashList: document.getElementById("trashList"),
   showPagesBtn: document.getElementById("showPagesBtn"),
   showTrashBtn: document.getElementById("showTrashBtn"),
+  quickCreatePageBtn: document.getElementById("quickCreatePageBtn"),
+
   globalSearchInput: document.getElementById("globalSearchInput"),
   clearSearchBtn: document.getElementById("clearSearchBtn"),
   globalSearchResultMeta: document.getElementById("globalSearchResultMeta"),
   globalSearchResults: document.getElementById("globalSearchResults"),
-  latestVersionEl: document.getElementById("latestVersion"),
-  quickCreatePageBtn: document.getElementById("quickCreatePageBtn"),
+
   importJsonBtn: document.getElementById("importJsonBtn"),
   exportJsonBtn: document.getElementById("exportJsonBtn"),
   importJsonInput: document.getElementById("importJsonInput"),
   importModeMenu: document.getElementById("importModeMenu"),
   importMergeBtn: document.getElementById("importMergeBtn"),
   importReplaceBtn: document.getElementById("importReplaceBtn"),
+
   pageItemMenu: document.getElementById("pageItemMenu"),
   pageMenuOpenBtn: document.getElementById("pageMenuOpenBtn"),
   pageMenuNewChildBtn: document.getElementById("pageMenuNewChildBtn"),
@@ -29,53 +31,15 @@
   pageMenuMoveRootBtn: document.getElementById("pageMenuMoveRootBtn"),
   pageMenuDeleteBtn: document.getElementById("pageMenuDeleteBtn"),
   pageMenuDeleteKeepChildrenBtn: document.getElementById("pageMenuDeleteKeepChildrenBtn"),
+
   trashItemMenu: document.getElementById("trashItemMenu"),
   trashMenuRestoreBtn: document.getElementById("trashMenuRestoreBtn"),
   trashMenuDeleteBtn: document.getElementById("trashMenuDeleteBtn"),
+
   counter: document.getElementById("counter"),
   statusEl: document.getElementById("status"),
   pagePathEl: document.getElementById("pagePath"),
-  contextMenu: document.getElementById("contextMenu"),
-  pasteImageBtn: document.getElementById("pasteImageBtn"),
   modeToggleBtn: document.getElementById("modeToggleBtn"),
-  editorToolbar: document.getElementById("editorToolbar"),
   localeSelect: document.getElementById("localeSelect"),
-
-  undoBtn: document.getElementById("undoBtn"),
-  redoBtn: document.getElementById("redoBtn"),
-  formatBlock: document.getElementById("formatBlock"),
-  clearFormatBtn: document.getElementById("clearFormatBtn"),
-  imageUrlBtn: document.getElementById("imageUrlBtn"),
-  insertWikiLinkBtn: document.getElementById("insertWikiLinkBtn"),
-  insertTableBtn: document.getElementById("insertTableBtn"),
-
-  colorBtn: document.getElementById("colorBtn"),
-  palettePanel: document.getElementById("palettePanel"),
-  paletteModeTabs: document.getElementById("paletteModeTabs"),
-  paletteColorList: document.getElementById("paletteColorList"),
-
-  fontSizeBtn: document.getElementById("fontSizeBtn"),
-  fontSizePanel: document.getElementById("fontSizePanel"),
-  fontSizeList: document.getElementById("fontSizeList"),
-  fontSizeCustomInput: document.getElementById("fontSizeCustomInput"),
-  fontSizeCustomApplyBtn: document.getElementById("fontSizeCustomApplyBtn"),
-
-  tablePanel: document.getElementById("tablePanel"),
-  tableRowsInput: document.getElementById("tableRowsInput"),
-  tableColsInput: document.getElementById("tableColsInput"),
-  tableCustomApplyBtn: document.getElementById("tableCustomApplyBtn"),
-
-  tableToolBar: document.getElementById("tableToolBar"),
-  tableExitBtn: document.getElementById("tableExitBtn"),
-  tableInsertRowBtn: document.getElementById("tableInsertRowBtn"),
-  tableDeleteRowBtn: document.getElementById("tableDeleteRowBtn"),
-  tableInsertColBtn: document.getElementById("tableInsertColBtn"),
-  tableDeleteColBtn: document.getElementById("tableDeleteColBtn"),
-  tableDeleteBtn: document.getElementById("tableDeleteBtn"),
-
-  imageToolMenu: document.getElementById("imageToolMenu"),
-  imageDefaultBtn: document.getElementById("imageDefaultBtn"),
-  imageResizeApplyBtn: document.getElementById("imageResizeApplyBtn"),
-  imageWidthInput: document.getElementById("imageWidthInput"),
-  imageHeightInput: document.getElementById("imageHeightInput")
+  latestVersionEl: document.getElementById("latestVersion")
 };

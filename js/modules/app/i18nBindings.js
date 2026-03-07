@@ -5,7 +5,6 @@ export function createI18nBindings({ dom, modes, wiki, editor, searchBindings })
     modes.applyMode();
     wiki.renderPageList();
     wiki.renderTrashList();
-    wiki.renderPreview();
     editor.updateCounter();
     if (searchBindings && typeof searchBindings.refreshActiveQuery === "function") {
       searchBindings.refreshActiveQuery();

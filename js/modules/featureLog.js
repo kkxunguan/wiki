@@ -20,6 +20,11 @@ export const FEATURE_LOG = [
     version: "v1.3.0",
     date: "2026-03-07",
     summary: "Replaced custom rich-text feature set with WangEditor integration."
+  },
+  {
+    version: "v1.4.0",
+    date: "2026-03-07",
+    summary: "Removed legacy preview/editor branches and repartitioned around WangEditor-only modules."
   }
 ];
 

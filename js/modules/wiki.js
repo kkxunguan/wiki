@@ -1,6 +1,6 @@
 ﻿import { t } from "./i18n.js";
 
-export function createWiki({ dom, state, savePages, saveTrash, onContentChanged, queueAutoSave, setStatus }) {
+export function createWiki({ dom, state, savePages, saveTrash, onContentChanged, setStatus }) {
   function showMenuInViewport(menuEl, clientX, clientY) {
     if (!menuEl) return;
     const margin = 8;
@@ -67,7 +67,7 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
       "SCRIPT", "STYLE", "IFRAME", "OBJECT", "EMBED", "META", "LINK", "BASE", "FORM",
       "SVG", "MATH"
     ]);
-    const transientClasses = new Set(["jump-target", "image-selected", "table-selected"]);
+    const transientClasses = new Set(["jump-target"]);
 
     const elements = Array.from(template.content.querySelectorAll("*"));
     elements.forEach((el) => {
@@ -121,15 +121,6 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
       return;
     }
     if (dom.editor) dom.editor.innerHTML = safeHtml;
-  }
-
-  function slugify(text) {
-    return (text || "")
-      .toLowerCase()
-      .replace(/<[^>]*>/g, "")
-      .replace(/[^\w\u4e00-\u9fa5]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 48) || "section";
   }
 
   function persistPages() {
@@ -321,74 +312,6 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
     } catch {}
   }
 
-  function linkifyWiki(html) {
-    function parseWikiTarget(rawText) {
-      const raw = sanitizeName(rawText);
-      if (!raw) return null;
-      if (raw.startsWith("#")) {
-        const anchorOnly = sanitizeName(raw.slice(1));
-        if (!anchorOnly) return null;
-        return { page: state.currentPage || "", anchor: anchorOnly, label: raw };
-      }
-      const hashIndex = raw.indexOf("#");
-      if (hashIndex === -1) return { page: raw, anchor: "", label: raw };
-      const page = sanitizeName(raw.slice(0, hashIndex));
-      const anchor = sanitizeName(raw.slice(hashIndex + 1));
-      if (!page) return null;
-      return { page, anchor, label: raw };
-    }
-
-    return html.replace(/\[\[([^\[\]]+)\]\]/g, (full, targetText) => {
-      const parsed = parseWikiTarget(targetText);
-      if (!parsed || !parsed.page) return full;
-      const pagePart = encodeURIComponent(parsed.page);
-      const anchorPart = encodeURIComponent(parsed.anchor || "");
-      return `<a href="#" data-wiki-page="${pagePart}" data-wiki-anchor="${anchorPart}">${escapeHtml(parsed.label)}</a>`;
-    });
-  }
-
-  function scrollPreviewToAnchor(anchor) {
-    if (!dom.preview) return false;
-    const clean = sanitizeName(anchor);
-    if (!clean) return false;
-    dom.preview.querySelectorAll(".jump-target").forEach((el) => el.classList.remove("jump-target"));
-    const exactId = dom.preview.querySelector(`#${CSS.escape(clean)}`);
-    const slugId = dom.preview.querySelector(`#${CSS.escape(slugify(clean))}`);
-    const byTitle = Array.from(dom.preview.querySelectorAll("h1,h2,h3,h4,h5,h6")).find((h) => sanitizeName(h.textContent) === clean);
-    const target = exactId || slugId || byTitle || null;
-    if (!target) return false;
-    target.scrollIntoView({ behavior: "smooth", block: "start" });
-    target.classList.add("jump-target");
-    setTimeout(() => target.classList.remove("jump-target"), 1000);
-    return true;
-  }
-
-  function renderPreview() {
-    if (!dom.preview || !dom.toc) return;
-    dom.preview.innerHTML = linkifyWiki(sanitizeHtml(readEditorHtml()));
-    const headings = dom.preview.querySelectorAll("h1, h2, h3");
-    const used = new Set();
-    dom.toc.innerHTML = "";
-    headings.forEach((h, i) => {
-      const level = h.tagName.toLowerCase();
-      let id = slugify(h.textContent || `section-${i + 1}`);
-      if (used.has(id)) id = `${id}-${i + 1}`;
-      used.add(id);
-      h.id = id;
-      const li = document.createElement("li");
-      li.style.paddingLeft = level === "h1" ? "0" : level === "h2" ? "12px" : "24px";
-      const a = document.createElement("a");
-      a.href = `#${id}`;
-      a.dataset.anchor = "1";
-      a.textContent = h.textContent || id;
-      li.appendChild(a);
-      dom.toc.appendChild(li);
-    });
-    if (!dom.toc.children.length) {
-      dom.toc.innerHTML = `<li style="color:#8d9ab1;">${escapeHtml(t("wiki.tocEmpty"))}</li>`;
-    }
-  }
-
   function renderPageList() {
     const map = getChildrenMap();
     dom.pageList.innerHTML = "";
@@ -491,7 +414,7 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
     return ok ? name : "";
   }
 
-  function openPage(name, anchor = "") {
+  function openPage(name) {
     const clean = sanitizeName(name);
     state.trashPreviewName = "";
     if (state.currentPage && clean !== state.currentPage) {
@@ -508,8 +431,7 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
     applyEditorBackground(page.pageBackground);
     renderPageList();
     onContentChanged();
-    if (anchor) scrollPreviewToAnchor(anchor);
-    setStatus(anchor ? t("status.currentPageWithAnchor", { path: buildPagePath(clean), anchor }) : t("status.currentPage", { path: buildPagePath(clean) }));
+    setStatus(t("status.currentPage", { path: buildPagePath(clean) }));
   }
 
   function previewTrashPage(name) {
@@ -547,7 +469,6 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
     state.pages[oldName] = { ...state.pages[oldName], content: html };
     persistPages();
     renderPageList();
-    renderPreview();
     const path = buildPagePath(state.currentPage);
     const timeText = formatSaveTime();
     setStatus(
@@ -777,7 +698,6 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
 
     if (!Object.keys(state.pages).length) createPage(t("page.home"), t("content.newWiki"), null);
     if (subtree.some((n) => n.name === state.currentPage)) openPage(Object.keys(state.pages)[0]);
-    else renderPreview();
 
     setStatus(t("status.movedToTrash", { name: clean }));
     return true;
@@ -835,8 +755,6 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
       const openCandidate = directChildren.find((n) => state.pages[n])
         || (parent && state.pages[parent] ? parent : Object.keys(state.pages)[0]);
       if (openCandidate) openPage(openCandidate);
-    } else {
-      renderPreview();
     }
 
     setStatus(t("status.deletedPromoteChildren", { name: clean }));
@@ -938,36 +856,10 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
     });
   }
 
-  function bindPreviewLinks() {
-    if (!dom.preview || !dom.toc) return;
-    dom.preview.addEventListener("click", (e) => {
-      const link = e.target.closest("a");
-      if (!link) return;
-      const pageName = link.getAttribute("data-wiki-page");
-      const anchor = link.getAttribute("data-wiki-anchor");
-      if (pageName || anchor) {
-        e.preventDefault();
-        const targetPage = pageName ? decodeURIComponent(pageName) : state.currentPage;
-        const targetAnchor = anchor ? decodeURIComponent(anchor) : "";
-        openPage(targetPage, targetAnchor);
-      }
-    });
-
-    dom.toc.addEventListener("click", (e) => {
-      const link = e.target.closest("a[data-anchor]");
-      if (!link) return;
-      e.preventDefault();
-      const targetId = link.getAttribute("href").slice(1);
-      const target = dom.preview.querySelector(`#${CSS.escape(targetId)}`);
-      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  }
-
   return {
     sanitizeName,
     normalizePages,
     normalizeTrash,
-    renderPreview,
     renderPageList,
     renderTrashList,
     createPage,
@@ -987,8 +879,7 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
     deleteCurrentPage,
     restoreTrashRoot,
     purgeTrashRoot,
-    bindTrashActions,
-    bindPreviewLinks
+    bindTrashActions
   };
 }
 

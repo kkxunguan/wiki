@@ -8,8 +8,6 @@ export const state = {
   trashPreviewName: "",
   currentPage: "",
   selectedPage: "",
-  savedRange: null,
   autoSaveTimer: null,
-  tableResizeState: null,
-  tableToolTargetCell: null
+  editorAdapter: null
 };
