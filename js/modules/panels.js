@@ -1,7 +1,8 @@
-﻿export function createPanels(dom) {
+export function createPanels(dom) {
   const panelMap = {
-    color: { btn: dom.colorBtn, panel: dom.colorPanel },
-    bgColor: { btn: dom.bgColorBtn, panel: dom.bgColorPanel },
+    color: { btn: dom.colorBtn, panel: dom.palettePanel },
+    bgColor: { btn: dom.colorBtn, panel: dom.palettePanel },
+    pageBg: { btn: dom.colorBtn, panel: dom.palettePanel },
     fontSize: { btn: dom.fontSizeBtn, panel: dom.fontSizePanel },
     table: { btn: dom.insertTableBtn, panel: dom.tablePanel }
   };
@@ -13,11 +14,15 @@
   }
 
   function hide(name) {
-    panelMap[name].panel.style.display = "none";
+    const entry = panelMap[name];
+    if (!entry || !entry.panel) return;
+    entry.panel.style.display = "none";
   }
 
   function show(name) {
-    const { panel, btn } = panelMap[name];
+    const entry = panelMap[name];
+    if (!entry || !entry.panel || !entry.btn) return;
+    const { panel, btn } = entry;
     Object.keys(panelMap).forEach((n) => {
       if (n !== name) hide(n);
     });
@@ -26,7 +31,9 @@
   }
 
   function toggle(name) {
-    const panel = panelMap[name].panel;
+    const entry = panelMap[name];
+    if (!entry || !entry.panel) return;
+    const panel = entry.panel;
     if (panel.style.display === "block") hide(name);
     else show(name);
   }
@@ -38,7 +45,7 @@
   function bindGlobalDismiss(extraIgnoreSelectors = []) {
     document.addEventListener("click", (e) => {
       const insideAnyPanel = Object.values(panelMap).some(({ panel, btn }) =>
-        e.target.closest(`#${panel.id}`) || e.target.closest(`#${btn.id}`)
+        (panel && e.target.closest(`#${panel.id}`)) || (btn && e.target.closest(`#${btn.id}`))
       );
       const insideExtra = extraIgnoreSelectors.some((sel) => e.target.closest(sel));
       if (!insideAnyPanel && !insideExtra) hideAll();
@@ -47,5 +54,5 @@
     window.addEventListener("resize", hideAll);
   }
 
-  return { toggle, hide, hideAll, bindGlobalDismiss };
+  return { toggle, show, hide, hideAll, bindGlobalDismiss };
 }

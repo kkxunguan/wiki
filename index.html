@@ -51,7 +51,6 @@
         <span class="tool-divider"></span>
         <button id="fontSizeBtn" class="icon-btn"><span class="i">↕</span><span>字号</span></button>
         <button id="colorBtn" class="icon-btn"><span class="i">🎨</span><span>颜色</span></button>
-        <button id="bgColorBtn" class="icon-btn"><span class="i">🖍</span><span>底色</span></button>
         <span class="tool-divider"></span>
         <button id="insertWikiLinkBtn" class="icon-btn"><span class="i">🧭</span><span>Wiki</span></button>
         <button id="imageUrlBtn" class="icon-btn"><span class="i">🖼</span><span>图片</span></button>
@@ -61,7 +60,7 @@
       </div>
 
       <div class="workspace">
-        <div class="editor-wrap">
+        <div id="editorWrap" class="editor-wrap">
           <div id="editor" class="editor" contenteditable="true"></div>
           <div class="meta">
             <span id="counter">0 字</span>
@@ -117,67 +116,14 @@
     </div>
   </div>
 
-  <div id="colorPanel" class="emoji-panel">
-    <div class="color-panel-title">选择文字颜色</div>
-    <input id="colorPickerPanel" class="color-panel-picker" type="color" value="#1f2a39" />
-    <div class="color-presets" id="colorPresetsPanel">
-      <button class="color-chip" type="button" data-color="#1f2a39" title="默认黑" style="background:#1f2a39;"></button>
-      <button class="color-chip" type="button" data-color="#374151" title="石墨灰" style="background:#374151;"></button>
-      <button class="color-chip" type="button" data-color="#6b7280" title="中性灰" style="background:#6b7280;"></button>
-      <button class="color-chip" type="button" data-color="#e02424" title="红色" style="background:#e02424;"></button>
-      <button class="color-chip" type="button" data-color="#dc2626" title="正红" style="background:#dc2626;"></button>
-      <button class="color-chip" type="button" data-color="#be123c" title="玫红" style="background:#be123c;"></button>
-      <button class="color-chip" type="button" data-color="#9d174d" title="深玫红" style="background:#9d174d;"></button>
-      <button class="color-chip" type="button" data-color="#f59e0b" title="橙色" style="background:#f59e0b;"></button>
-      <button class="color-chip" type="button" data-color="#ea580c" title="深橙" style="background:#ea580c;"></button>
-      <button class="color-chip" type="button" data-color="#ca8a04" title="金黄" style="background:#ca8a04;"></button>
-      <button class="color-chip" type="button" data-color="#eab308" title="亮黄" style="background:#eab308;"></button>
-      <button class="color-chip" type="button" data-color="#16a34a" title="绿色" style="background:#16a34a;"></button>
-      <button class="color-chip" type="button" data-color="#15803d" title="深绿" style="background:#15803d;"></button>
-      <button class="color-chip" type="button" data-color="#22c55e" title="亮绿" style="background:#22c55e;"></button>
-      <button class="color-chip" type="button" data-color="#0f766e" title="青绿" style="background:#0f766e;"></button>
-      <button class="color-chip" type="button" data-color="#2563eb" title="蓝色" style="background:#2563eb;"></button>
-      <button class="color-chip" type="button" data-color="#1d4ed8" title="深蓝" style="background:#1d4ed8;"></button>
-      <button class="color-chip" type="button" data-color="#0ea5e9" title="天蓝" style="background:#0ea5e9;"></button>
-      <button class="color-chip" type="button" data-color="#0369a1" title="湖蓝" style="background:#0369a1;"></button>
-      <button class="color-chip" type="button" data-color="#7c3aed" title="紫色" style="background:#7c3aed;"></button>
-      <button class="color-chip" type="button" data-color="#9333ea" title="亮紫" style="background:#9333ea;"></button>
-      <button class="color-chip" type="button" data-color="#6d28d9" title="深紫" style="background:#6d28d9;"></button>
-      <button class="color-chip" type="button" data-color="#c026d3" title="品红" style="background:#c026d3;"></button>
-      <button class="color-chip" type="button" data-color="#7f1d1d" title="棕红" style="background:#7f1d1d;"></button>
+  <div id="palettePanel" class="emoji-panel palette-panel">
+    <div class="color-panel-title">颜色设置</div>
+    <div id="paletteModeTabs" class="palette-mode-tabs">
+      <button type="button" class="palette-mode-btn active" data-palette-mode="text">字体颜色</button>
+      <button type="button" class="palette-mode-btn" data-palette-mode="bg">文字底色</button>
+      <button type="button" class="palette-mode-btn" data-palette-mode="page">页面底色</button>
     </div>
-  </div>
-
-  <div id="bgColorPanel" class="emoji-panel">
-    <div class="color-panel-title">选择文字底色</div>
-    <button id="clearBgColorBtn" type="button" class="bg-clear-btn">一键清除底色</button>
-    <input id="bgColorPickerPanel" class="color-panel-picker" type="color" value="#1f2a39" />
-    <div class="color-presets" id="bgColorPresetsPanel">
-      <button class="color-chip" type="button" data-color="#1f2a39" title="默认黑" style="background:#1f2a39;"></button>
-      <button class="color-chip" type="button" data-color="#374151" title="石墨灰" style="background:#374151;"></button>
-      <button class="color-chip" type="button" data-color="#6b7280" title="中性灰" style="background:#6b7280;"></button>
-      <button class="color-chip" type="button" data-color="#e02424" title="红色" style="background:#e02424;"></button>
-      <button class="color-chip" type="button" data-color="#dc2626" title="正红" style="background:#dc2626;"></button>
-      <button class="color-chip" type="button" data-color="#be123c" title="玫红" style="background:#be123c;"></button>
-      <button class="color-chip" type="button" data-color="#9d174d" title="深玫红" style="background:#9d174d;"></button>
-      <button class="color-chip" type="button" data-color="#f59e0b" title="橙色" style="background:#f59e0b;"></button>
-      <button class="color-chip" type="button" data-color="#ea580c" title="深橙" style="background:#ea580c;"></button>
-      <button class="color-chip" type="button" data-color="#ca8a04" title="金黄" style="background:#ca8a04;"></button>
-      <button class="color-chip" type="button" data-color="#eab308" title="亮黄" style="background:#eab308;"></button>
-      <button class="color-chip" type="button" data-color="#16a34a" title="绿色" style="background:#16a34a;"></button>
-      <button class="color-chip" type="button" data-color="#15803d" title="深绿" style="background:#15803d;"></button>
-      <button class="color-chip" type="button" data-color="#22c55e" title="亮绿" style="background:#22c55e;"></button>
-      <button class="color-chip" type="button" data-color="#0f766e" title="青绿" style="background:#0f766e;"></button>
-      <button class="color-chip" type="button" data-color="#2563eb" title="蓝色" style="background:#2563eb;"></button>
-      <button class="color-chip" type="button" data-color="#1d4ed8" title="深蓝" style="background:#1d4ed8;"></button>
-      <button class="color-chip" type="button" data-color="#0ea5e9" title="天蓝" style="background:#0ea5e9;"></button>
-      <button class="color-chip" type="button" data-color="#0369a1" title="湖蓝" style="background:#0369a1;"></button>
-      <button class="color-chip" type="button" data-color="#7c3aed" title="紫色" style="background:#7c3aed;"></button>
-      <button class="color-chip" type="button" data-color="#9333ea" title="亮紫" style="background:#9333ea;"></button>
-      <button class="color-chip" type="button" data-color="#6d28d9" title="深紫" style="background:#6d28d9;"></button>
-      <button class="color-chip" type="button" data-color="#c026d3" title="品红" style="background:#c026d3;"></button>
-      <button class="color-chip" type="button" data-color="#7f1d1d" title="棕红" style="background:#7f1d1d;"></button>
-    </div>
+    <ul id="paletteColorList" class="palette-color-list" role="listbox" aria-label="颜色列表"></ul>
   </div>
 
   <div id="fontSizePanel" class="emoji-panel font-size-panel">

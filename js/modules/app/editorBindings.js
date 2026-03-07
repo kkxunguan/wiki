@@ -9,6 +9,134 @@ export function createEditorBindings({
   queueAutoSave,
   showMenuInViewport
 }) {
+  const SHARED_COLOR_VALUES = [
+    "rgb(0, 0, 0)", "rgb(38, 38, 38)", "rgb(89, 89, 89)", "rgb(140, 140, 140)", "rgb(191, 191, 191)",
+    "rgb(217, 217, 217)", "rgb(233, 233, 233)", "rgb(245, 245, 245)", "rgb(250, 250, 250)", "rgb(255, 255, 255)",
+    "rgb(225, 60, 57)", "rgb(231, 95, 51)", "rgb(235, 144, 58)", "rgb(245, 219, 77)", "rgb(114, 192, 64)",
+    "rgb(89, 191, 192)", "rgb(66, 144, 247)", "rgb(54, 88, 226)", "rgb(106, 57, 201)", "rgb(216, 68, 147)",
+    "rgb(251, 233, 230)", "rgb(252, 237, 225)", "rgb(252, 239, 212)", "rgb(252, 251, 207)", "rgb(231, 246, 213)",
+    "rgb(218, 244, 240)", "rgb(217, 237, 250)", "rgb(224, 232, 250)", "rgb(237, 225, 248)", "rgb(246, 226, 234)",
+    "rgb(255, 163, 158)", "rgb(255, 187, 150)", "rgb(255, 213, 145)", "rgb(255, 251, 143)", "rgb(183, 235, 143)",
+    "rgb(135, 232, 222)", "rgb(145, 213, 255)", "rgb(173, 198, 255)", "rgb(211, 173, 247)", "rgb(255, 173, 210)",
+    "rgb(255, 77, 79)", "rgb(255, 122, 69)", "rgb(255, 169, 64)", "rgb(255, 236, 61)", "rgb(115, 209, 61)",
+    "rgb(54, 207, 201)", "rgb(64, 169, 255)", "rgb(89, 126, 247)", "rgb(146, 84, 222)", "rgb(247, 89, 171)",
+    "rgb(207, 19, 34)", "rgb(212, 56, 13)", "rgb(212, 107, 8)", "rgb(212, 177, 6)", "rgb(56, 158, 13)",
+    "rgb(8, 151, 156)", "rgb(9, 109, 217)", "rgb(29, 57, 196)", "rgb(83, 29, 171)", "rgb(196, 29, 127)",
+    "rgb(130, 0, 20)", "rgb(135, 20, 0)", "rgb(135, 56, 0)", "rgb(97, 71, 0)", "rgb(19, 82, 0)",
+    "rgb(0, 71, 79)", "rgb(0, 58, 140)", "rgb(6, 17, 120)", "rgb(34, 7, 94)", "rgb(120, 6, 80)"
+  ];
+
+  const PALETTE_MODE_META = {
+    text: {
+      panelName: "color",
+      clearLabel: "默认黑色",
+      clearAction: () => applyPaletteColorByMode("text", "rgb(0, 0, 0)")
+    },
+    bg: {
+      panelName: "bgColor",
+      clearLabel: "清除背景色",
+      clearAction: () => {
+        editor.clearBackgroundColor();
+        return true;
+      }
+    },
+    page: {
+      panelName: "pageBg",
+      clearLabel: "恢复默认背景",
+      clearAction: () => {
+        if (!wiki.clearCurrentPageBackground(true)) return false;
+        setStatus("已恢复默认页面背景");
+        return true;
+      }
+    }
+  };
+
+  let currentPaletteMode = "text";
+  const modeLastColor = {
+    text: "rgb(0, 0, 0)",
+    bg: "",
+    page: ""
+  };
+
+  function normalizePaletteColor(raw) {
+    return String(raw || "").trim().toLowerCase().replace(/\s+/g, "");
+  }
+
+  function applyPaletteColorByMode(mode, color) {
+    if (editor.isReadOnly()) return false;
+    const value = String(color || "").trim();
+    if (!value) return false;
+    if (mode === "text") {
+      editor.exec("foreColor", value);
+      modeLastColor.text = value;
+      setStatus(`已设置颜色：${value}`);
+      return true;
+    }
+    if (mode === "bg") {
+      editor.exec("hiliteColor", value);
+      modeLastColor.bg = value;
+      setStatus(`已设置底色：${value}`);
+      return true;
+    }
+    if (!wiki.setCurrentPageBackground(value, true)) return false;
+    modeLastColor.page = value;
+    setStatus(`已设置页面背景：${value}`);
+    return true;
+  }
+
+  function renderPaletteColorList() {
+    if (!dom.paletteColorList) return;
+    dom.paletteColorList.innerHTML = "";
+    const modeMeta = PALETTE_MODE_META[currentPaletteMode] || PALETTE_MODE_META.text;
+    const activeColor = normalizePaletteColor(modeLastColor[currentPaletteMode]);
+
+    const clearItem = document.createElement("li");
+    clearItem.className = "palette-clear-item";
+    clearItem.dataset.paletteAction = "clear";
+    clearItem.textContent = modeMeta.clearLabel;
+    dom.paletteColorList.appendChild(clearItem);
+
+    SHARED_COLOR_VALUES.forEach((color) => {
+      const item = document.createElement("li");
+      item.className = "palette-color-item";
+      item.setAttribute("data-value", color);
+      if (activeColor && normalizePaletteColor(color) === activeColor) {
+        item.classList.add("active");
+      }
+
+      const block = document.createElement("div");
+      block.className = "color-block";
+      block.setAttribute("data-value", color);
+      block.style.backgroundColor = color;
+      item.appendChild(block);
+      dom.paletteColorList.appendChild(item);
+    });
+  }
+
+  function setPaletteMode(mode) {
+    const nextMode = PALETTE_MODE_META[mode] ? mode : "text";
+    currentPaletteMode = nextMode;
+    if (dom.paletteModeTabs) {
+      dom.paletteModeTabs.querySelectorAll("[data-palette-mode]").forEach((btn) => {
+        btn.classList.toggle("active", btn.getAttribute("data-palette-mode") === nextMode);
+      });
+    }
+    renderPaletteColorList();
+  }
+
+  function openPalettePanel(mode) {
+    const nextMode = PALETTE_MODE_META[mode] ? mode : "text";
+    const panelName = PALETTE_MODE_META[nextMode].panelName;
+    const isOpen = dom.palettePanel && dom.palettePanel.style.display === "block";
+    const sameMode = currentPaletteMode === nextMode;
+    if (isOpen && sameMode) {
+      panels.hide(panelName);
+      return;
+    }
+    setPaletteMode(nextMode);
+    panels.show(panelName);
+  }
+
   function bindEditorToolbar() {
     document.querySelectorAll("[data-cmd]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -49,11 +177,7 @@ export function createEditorBindings({
 
     dom.colorBtn.addEventListener("click", () => {
       if (editor.isReadOnly()) return;
-      panels.toggle("color");
-    });
-    dom.bgColorBtn.addEventListener("click", () => {
-      if (editor.isReadOnly()) return;
-      panels.toggle("bgColor");
+      openPalettePanel(currentPaletteMode);
     });
     dom.fontSizeBtn.addEventListener("click", () => {
       if (editor.isReadOnly()) return;
@@ -67,45 +191,45 @@ export function createEditorBindings({
     tableModule.bindTableInsert(editor.exec);
   }
 
-  function bindColorPanel() {
+  function bindPalettePanel() {
     document.execCommand("styleWithCSS", false, true);
 
-    const applyColor = (color) => {
-      if (!color) return;
-      editor.exec("foreColor", color);
-      setStatus(`已设置颜色：${color}`);
-      panels.hide("color");
-    };
+    if (dom.paletteModeTabs) {
+      dom.paletteModeTabs.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-palette-mode]");
+        if (!btn) return;
+        if (editor.isReadOnly()) return;
+        setPaletteMode(btn.getAttribute("data-palette-mode"));
+      });
+    }
 
-    dom.colorPickerPanel.addEventListener("input", () => applyColor(dom.colorPickerPanel.value));
-    dom.colorPresetsPanel.addEventListener("click", (e) => {
-      const chip = e.target.closest(".color-chip");
-      if (!chip) return;
-      applyColor(chip.getAttribute("data-color"));
-    });
-  }
+    if (dom.paletteColorList) {
+      dom.paletteColorList.addEventListener("click", (e) => {
+        if (editor.isReadOnly()) return;
+        const clearItem = e.target.closest("[data-palette-action='clear']");
+        if (clearItem) {
+          const modeMeta = PALETTE_MODE_META[currentPaletteMode] || PALETTE_MODE_META.text;
+          const ok = modeMeta.clearAction();
+          if (ok !== false) {
+            renderPaletteColorList();
+            panels.hide(modeMeta.panelName);
+          }
+          return;
+        }
 
-  function bindBackgroundColorPanel() {
-    document.execCommand("styleWithCSS", false, true);
+        const colorItem = e.target.closest(".palette-color-item");
+        if (!colorItem) return;
+        const color = colorItem.getAttribute("data-value");
+        if (!color) return;
+        if (applyPaletteColorByMode(currentPaletteMode, color)) {
+          renderPaletteColorList();
+          const modeMeta = PALETTE_MODE_META[currentPaletteMode] || PALETTE_MODE_META.text;
+          panels.hide(modeMeta.panelName);
+        }
+      });
+    }
 
-    const applyBgColor = (color) => {
-      if (!color) return;
-      editor.exec("hiliteColor", color);
-      setStatus(`已设置底色：${color}`);
-      panels.hide("bgColor");
-    };
-
-    dom.bgColorPickerPanel.addEventListener("input", () => applyBgColor(dom.bgColorPickerPanel.value));
-    dom.bgColorPresetsPanel.addEventListener("click", (e) => {
-      const chip = e.target.closest(".color-chip");
-      if (!chip) return;
-      applyBgColor(chip.getAttribute("data-color"));
-    });
-    dom.clearBgColorBtn.addEventListener("click", () => {
-      if (editor.isReadOnly()) return;
-      editor.clearBackgroundColor();
-      panels.hide("bgColor");
-    });
+    setPaletteMode("text");
   }
 
   function bindFontSizePanel() {
@@ -202,13 +326,15 @@ export function createEditorBindings({
     window.addEventListener("beforeunload", () => {
       if (state.autoSaveTimer) clearTimeout(state.autoSaveTimer);
       wiki.saveCurrentPage(true);
+      if (typeof editor.resetHistoryStorage === "function") {
+        editor.resetHistoryStorage();
+      }
     });
   }
 
   function bindAll() {
     bindEditorToolbar();
-    bindColorPanel();
-    bindBackgroundColorPanel();
+    bindPalettePanel();
     bindFontSizePanel();
     bindContextMenuAndPaste();
     bindKeyboardShortcuts();
@@ -218,8 +344,7 @@ export function createEditorBindings({
   return {
     bindAll,
     bindEditorToolbar,
-    bindColorPanel,
-    bindBackgroundColorPanel,
+    bindPalettePanel,
     bindFontSizePanel,
     bindContextMenuAndPaste,
     bindKeyboardShortcuts,

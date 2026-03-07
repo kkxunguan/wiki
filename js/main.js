@@ -27,14 +27,17 @@ async function init() {
   const setStatus = (text) => setStatusText(dom, text);
   const queueAutoSave = createQueueAutoSave();
   const onContentChanged = () => {
+    if (!editor || !wiki) return;
     editor.updateCounter();
     wiki.renderPreview();
     queueAutoSave();
+    editor.captureHistorySnapshot();
   };
 
   const panels = createPanels(dom);
 
   editor = createEditor({ dom, state, onContentChanged, queueAutoSave, setStatus });
+  await editor.resetHistoryStorage();
   wiki = createWiki({
     dom,
     state,

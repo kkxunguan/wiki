@@ -18,6 +18,37 @@
     return (name || "").trim();
   }
 
+  const PAGE_BG_DEFAULT = "";
+  function sanitizeRgbChannel(channel) {
+    const n = Number(channel);
+    if (!Number.isInteger(n) || n < 0 || n > 255) return null;
+    return n;
+  }
+
+  function sanitizePageBackground(color) {
+    const raw = String(color || "").trim();
+    if (!raw) return PAGE_BG_DEFAULT;
+
+    const hex = raw.match(/^#([0-9a-f]{6})$/i);
+    if (hex) return `#${hex[1].toLowerCase()}`;
+
+    const rgb = raw.match(/^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i);
+    if (rgb) {
+      const r = sanitizeRgbChannel(rgb[1]);
+      const g = sanitizeRgbChannel(rgb[2]);
+      const b = sanitizeRgbChannel(rgb[3]);
+      if (r !== null && g !== null && b !== null) return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    return PAGE_BG_DEFAULT;
+  }
+
+  function applyEditorBackground(color) {
+    if (!dom.editorWrap) return;
+    const next = sanitizePageBackground(color);
+    dom.editorWrap.style.background = next || "";
+  }
+
   function escapeHtml(text) {
     return String(text || "")
       .replace(/&/g, "&amp;")
@@ -90,6 +121,7 @@
       out[name] = {
         title: page.title || name,
         content: sanitizeHtml(page.content || "<p></p>"),
+        pageBackground: sanitizePageBackground(page.pageBackground),
         parent: page.parent || null,
         sortKey: normalizedSortKey,
         order: normalizedSortKey
@@ -113,6 +145,7 @@
       out[name] = {
         title: item.title || name,
         content: sanitizeHtml(item.content || "<p></p>"),
+        pageBackground: sanitizePageBackground(item.pageBackground),
         parent: item.parent || null,
         sortKey,
         order: sortKey,
@@ -374,7 +407,14 @@
     if (state.pages[clean]) return setStatus(`页面“${clean}”已存在`), false;
     const safeParent = parent && state.pages[parent] ? parent : null;
     const sortKey = nextSortKeyForParent(safeParent);
-    state.pages[clean] = { title: clean, content: sanitizeHtml(content), parent: safeParent, sortKey, order: sortKey };
+    state.pages[clean] = {
+      title: clean,
+      content: sanitizeHtml(content),
+      pageBackground: PAGE_BG_DEFAULT,
+      parent: safeParent,
+      sortKey,
+      order: sortKey
+    };
     persistPages();
     renderPageList();
     setStatus(`已创建页面：${clean}`);
@@ -408,6 +448,7 @@
     state.selectedPage = clean;
     const page = state.pages[clean];
     dom.editor.innerHTML = sanitizeHtml(page.content || "<p></p>");
+    applyEditorBackground(page.pageBackground);
     renderPageList();
     onContentChanged();
     if (anchor) scrollPreviewToAnchor(anchor);
@@ -428,6 +469,7 @@
 
     state.trashPreviewName = clean;
     dom.editor.innerHTML = sanitizeHtml(state.trash[clean].content || "<p></p>");
+    applyEditorBackground(state.trash[clean].pageBackground);
     setStatus(`回收站路径：${buildTrashPath(clean)}`);
     return true;
   }
@@ -455,6 +497,36 @@
         : `已保存页面：${path} · ${timeText}`
     );
     return true;
+  }
+
+  function setCurrentPageBackground(rawColor, silent = false) {
+    if (state.trashPreviewName) {
+      if (!silent) setStatus("回收站预览不可修改页面背景");
+      return false;
+    }
+    if (!state.currentPage || !state.pages[state.currentPage]) {
+      if (!silent) setStatus("请先创建或打开页面");
+      return false;
+    }
+
+    const color = sanitizePageBackground(rawColor);
+    const pageName = state.currentPage;
+    state.pages[pageName] = {
+      ...state.pages[pageName],
+      pageBackground: color
+    };
+    applyEditorBackground(color);
+    persistPages();
+
+    if (!silent) {
+      const label = color || "默认背景";
+      setStatus(`已设置页面背景：${label}`);
+    }
+    return true;
+  }
+
+  function clearCurrentPageBackground(silent = false) {
+    return setCurrentPageBackground(PAGE_BG_DEFAULT, silent);
   }
 
   function movePage(name, targetParent) {
@@ -579,6 +651,7 @@
       state.pages[newName] = {
         title: newName,
         content: node.content || "<p></p>",
+        pageBackground: sanitizePageBackground(node.pageBackground),
         parent: restoredParent,
         sortKey: restoredSortKey,
         order: restoredSortKey
@@ -619,6 +692,7 @@
       state.trash[pageName] = {
         title: page.title || pageName,
         content: page.content || "<p></p>",
+        pageBackground: sanitizePageBackground(page.pageBackground),
         parent: page.parent || null,
         sortKey: Number.isFinite(Number(page.sortKey))
           ? Number(page.sortKey)
@@ -673,6 +747,7 @@
     state.trash[clean] = {
       title: current.title || clean,
       content: current.content || "<p></p>",
+      pageBackground: sanitizePageBackground(current.pageBackground),
       parent: current.parent || null,
       sortKey: Number.isFinite(Number(current.sortKey))
         ? Number(current.sortKey)
@@ -839,6 +914,8 @@
     openPage,
     previewTrashPage,
     saveCurrentPage,
+    setCurrentPageBackground,
+    clearCurrentPageBackground,
     movePage,
     reorderPage,
     movePageSort,
@@ -853,3 +930,4 @@
     bindPreviewLinks
   };
 }
+

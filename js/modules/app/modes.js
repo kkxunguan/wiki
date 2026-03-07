@@ -38,8 +38,7 @@
       dom.contextMenu.style.display = "none";
       dom.tableToolBar.style.display = "none";
       dom.imageToolMenu.style.display = "none";
-      dom.colorPanel.style.display = "none";
-      dom.bgColorPanel.style.display = "none";
+      dom.palettePanel.style.display = "none";
       dom.fontSizePanel.style.display = "none";
       dom.tablePanel.style.display = "none";
     }

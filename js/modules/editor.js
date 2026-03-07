@@ -1,8 +1,19 @@
 ﻿export function createEditor({ dom, state, onContentChanged, queueAutoSave, setStatus }) {
+  const SHARED_DB_NAME = "wiki-richtext-db";
+  const HISTORY_DB_VERSION = 1;
+  const HISTORY_STORE_NAME = "kv";
+  const HISTORY_DB_KEY = "wiki-editor-history-v1";
+  const LEGACY_HISTORY_DB_NAME = "wiki-editor-history-db";
+  const HISTORY_PERSIST_DEBOUNCE_MS = 180;
+  const HISTORY_LIMIT = 120;
+  const HISTORY_MAX_TRACK_BYTES = 8 * 1024 * 1024;
   let selectedImage = null;
   let selectedImageAspectRatio = 0;
   let draggingFromImageSizeInput = false;
   let readOnly = false;
+  let suppressHistoryCapture = false;
+  let sessionHistory = {};
+  let historyPersistTimer = null;
   const BLOCK_STYLE_PRESETS = {
     P: {
       fontSize: "16px",
@@ -54,6 +65,190 @@
     state.savedRange = range.cloneRange();
   }
 
+  function openHistoryDb() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(SHARED_DB_NAME, HISTORY_DB_VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(HISTORY_STORE_NAME)) {
+          db.createObjectStore(HISTORY_STORE_NAME, { keyPath: "key" });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function writeHistoryToDb(historyPayload) {
+    try {
+      const db = await openHistoryDb();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(HISTORY_STORE_NAME, "readwrite");
+        tx.objectStore(HISTORY_STORE_NAME).put({ key: HISTORY_DB_KEY, value: historyPayload });
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+      db.close();
+    } catch {
+      // ignore storage errors to keep editor usable
+    }
+  }
+
+  async function clearHistoryDb() {
+    try {
+      const db = await openHistoryDb();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(HISTORY_STORE_NAME, "readwrite");
+        tx.objectStore(HISTORY_STORE_NAME).delete(HISTORY_DB_KEY);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+      db.close();
+    } catch {
+      // ignore storage errors to keep editor usable
+    }
+  }
+
+  async function deleteLegacyHistoryDb() {
+    try {
+      await new Promise((resolve) => {
+        const req = indexedDB.deleteDatabase(LEGACY_HISTORY_DB_NAME);
+        req.onsuccess = () => resolve();
+        req.onerror = () => resolve();
+        req.onblocked = () => resolve();
+      });
+    } catch {
+      // ignore cleanup errors
+    }
+  }
+
+  function estimateTextBytes(text) {
+    if (typeof text !== "string") return 0;
+    return text.length * 2;
+  }
+
+  function getTrackBytes(track) {
+    if (!track || !Array.isArray(track.entries)) return 0;
+    return track.entries.reduce((sum, item) => sum + estimateTextBytes(item), 0);
+  }
+
+  function normalizeTrack(track) {
+    if (!track || !Array.isArray(track.entries)) return { entries: [], index: -1 };
+    const entries = track.entries.filter((entry) => typeof entry === "string");
+    if (!entries.length) return { entries: [], index: -1 };
+    const parsedIndex = Number(track.index);
+    const index = Number.isInteger(parsedIndex)
+      ? Math.min(Math.max(parsedIndex, 0), entries.length - 1)
+      : entries.length - 1;
+    return { entries, index };
+  }
+
+  function clampTrack(track, maxEntries = HISTORY_LIMIT, maxBytes = HISTORY_MAX_TRACK_BYTES) {
+    if (!track || !Array.isArray(track.entries)) return;
+
+    while (track.entries.length > maxEntries) {
+      track.entries.shift();
+      track.index -= 1;
+    }
+
+    while (track.entries.length > 1 && getTrackBytes(track) > maxBytes) {
+      track.entries.shift();
+      track.index -= 1;
+    }
+
+    if (!track.entries.length) {
+      track.index = -1;
+      return;
+    }
+    if (track.index < 0) track.index = 0;
+    if (track.index >= track.entries.length) track.index = track.entries.length - 1;
+  }
+
+  function queuePersistHistory() {
+    if (historyPersistTimer) clearTimeout(historyPersistTimer);
+    historyPersistTimer = setTimeout(() => {
+      historyPersistTimer = null;
+      const payload = JSON.parse(JSON.stringify(sessionHistory));
+      writeHistoryToDb(payload);
+    }, HISTORY_PERSIST_DEBOUNCE_MS);
+  }
+
+  async function resetHistoryStorage() {
+    if (historyPersistTimer) {
+      clearTimeout(historyPersistTimer);
+      historyPersistTimer = null;
+    }
+    sessionHistory = {};
+    await clearHistoryDb();
+    await deleteLegacyHistoryDb();
+  }
+
+  function getHistoryPageKey() {
+    if (state.trashPreviewName) return `trash:${state.trashPreviewName}`;
+    if (state.currentPage) return `page:${state.currentPage}`;
+    return "";
+  }
+
+  function ensureHistoryTrack(pageKey) {
+    if (!pageKey) return null;
+    const current = normalizeTrack(sessionHistory[pageKey]);
+    if (current.entries.length || sessionHistory[pageKey]) {
+      clampTrack(current);
+      sessionHistory[pageKey] = current;
+      return current;
+    }
+    const track = { entries: [], index: -1 };
+    sessionHistory[pageKey] = track;
+    return track;
+  }
+
+  function placeCaretAtEnd() {
+    const sel = window.getSelection();
+    if (!sel) return;
+    const range = document.createRange();
+    range.selectNodeContents(dom.editor);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    saveSelectionIfInsideEditor();
+  }
+
+  function captureHistorySnapshot(force = false) {
+    if (suppressHistoryCapture) return;
+    const pageKey = getHistoryPageKey();
+    if (!pageKey) return;
+    const track = ensureHistoryTrack(pageKey);
+    if (!track) return;
+
+    const html = dom.editor.innerHTML || "<p></p>";
+    if (!force && track.index >= 0 && track.entries[track.index] === html) return;
+
+    if (track.index < track.entries.length - 1) {
+      track.entries = track.entries.slice(0, track.index + 1);
+    }
+
+    track.entries.push(html);
+    track.index = track.entries.length - 1;
+    clampTrack(track);
+    queuePersistHistory();
+  }
+
+  function applyHistorySnapshot(track, index) {
+    if (!track || index < 0 || index >= track.entries.length) return false;
+    const html = track.entries[index];
+    if (typeof html !== "string") return false;
+
+    suppressHistoryCapture = true;
+    try {
+      dom.editor.innerHTML = html;
+      placeCaretAtEnd();
+      onContentChanged();
+    } finally {
+      suppressHistoryCapture = false;
+    }
+    return true;
+  }
+
   function restoreSavedSelection() {
     if (!state.savedRange) return;
     const sel = window.getSelection();
@@ -77,20 +272,38 @@
 
   function undoEditor() {
     if (readOnly) return;
-    dom.editor.focus();
-    document.execCommand("undo", false, null);
-    saveSelectionIfInsideEditor();
-    onContentChanged();
+    const pageKey = getHistoryPageKey();
+    const track = ensureHistoryTrack(pageKey);
+    if (!track || track.index <= 0) {
+      setStatus("没有可撤销的操作");
+      return;
+    }
+    const nextIndex = track.index - 1;
+    if (!applyHistorySnapshot(track, nextIndex)) {
+      setStatus("撤销失败");
+      return;
+    }
+    track.index = nextIndex;
+    queuePersistHistory();
     queueAutoSave();
     setStatus("已撤销");
   }
 
   function redoEditor() {
     if (readOnly) return;
-    dom.editor.focus();
-    document.execCommand("redo", false, null);
-    saveSelectionIfInsideEditor();
-    onContentChanged();
+    const pageKey = getHistoryPageKey();
+    const track = ensureHistoryTrack(pageKey);
+    if (!track || track.index >= track.entries.length - 1) {
+      setStatus("没有可前进的操作");
+      return;
+    }
+    const nextIndex = track.index + 1;
+    if (!applyHistorySnapshot(track, nextIndex)) {
+      setStatus("前进失败");
+      return;
+    }
+    track.index = nextIndex;
+    queuePersistHistory();
     queueAutoSave();
     setStatus("已前进");
   }
@@ -660,6 +873,8 @@
     exec,
     undoEditor,
     redoEditor,
+    resetHistoryStorage,
+    captureHistorySnapshot,
     updateCounter,
     insertImageAtCursor,
     applyFontSizePx,

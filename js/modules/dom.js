@@ -1,4 +1,5 @@
 ﻿export const dom = {
+  editorWrap: document.getElementById("editorWrap"),
   editor: document.getElementById("editor"),
   preview: document.getElementById("preview"),
   toc: document.getElementById("toc"),
@@ -42,14 +43,9 @@
   insertTableBtn: document.getElementById("insertTableBtn"),
 
   colorBtn: document.getElementById("colorBtn"),
-  colorPanel: document.getElementById("colorPanel"),
-  colorPickerPanel: document.getElementById("colorPickerPanel"),
-  colorPresetsPanel: document.getElementById("colorPresetsPanel"),
-  bgColorBtn: document.getElementById("bgColorBtn"),
-  bgColorPanel: document.getElementById("bgColorPanel"),
-  clearBgColorBtn: document.getElementById("clearBgColorBtn"),
-  bgColorPickerPanel: document.getElementById("bgColorPickerPanel"),
-  bgColorPresetsPanel: document.getElementById("bgColorPresetsPanel"),
+  palettePanel: document.getElementById("palettePanel"),
+  paletteModeTabs: document.getElementById("paletteModeTabs"),
+  paletteColorList: document.getElementById("paletteColorList"),
 
   fontSizeBtn: document.getElementById("fontSizeBtn"),
   fontSizePanel: document.getElementById("fontSizePanel"),
