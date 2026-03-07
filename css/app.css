@@ -301,6 +301,17 @@ button:hover, select:hover, .page-item:hover { border-color: var(--accent); }
   gap: 6.4px;
   flex-wrap: wrap;
 }
+#editorToolbarHost {
+  padding: 0;
+  display: block;
+}
+#editorToolbar {
+  width: 100%;
+}
+#editorToolbar .w-e-toolbar {
+  border: none !important;
+  border-radius: 0 !important;
+}
 .icon-btn { display: inline-flex; align-items: center; gap: 4.8px; white-space: nowrap; }
 .icon-btn .i { font-size: 11.2px; line-height: 1; }
 .tool-divider { width: 1px; align-self: stretch; background: var(--line); margin: 0 2px; }
@@ -338,6 +349,18 @@ button:hover, select:hover, .page-item:hover { border-color: var(--accent); }
   font-size: 12.8px;
   overflow-y: auto;
   overflow-x: hidden;
+}
+#editor.wang-editor {
+  padding: 0;
+}
+#editor.wang-editor .w-e-text-container {
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent;
+}
+#editor.wang-editor .w-e-scroll {
+  min-height: 420px;
+  padding: 12.8px;
 }
 .editor p, .preview p {
   font-size: var(--preset-p-size);

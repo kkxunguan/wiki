@@ -38,6 +38,7 @@
   contextMenu: document.getElementById("contextMenu"),
   pasteImageBtn: document.getElementById("pasteImageBtn"),
   modeToggleBtn: document.getElementById("modeToggleBtn"),
+  editorToolbar: document.getElementById("editorToolbar"),
   localeSelect: document.getElementById("localeSelect"),
 
   undoBtn: document.getElementById("undoBtn"),

@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title data-i18n="html.title"></title>
+  <link rel="stylesheet" href="./wangeditor/style.css" />
   <link rel="stylesheet" href="./css/app.css" />
 </head>
 <body>
@@ -51,34 +52,13 @@
         </label>
         <button id="modeToggleBtn" type="button" data-i18n="mode.read"></button>
       </div>
-      <div class="toolbar">
-        <button id="undoBtn" class="icon-btn" data-i18n-title="toolbar.undoTitle"><span class="i">↶</span><span data-i18n="toolbar.undo"></span></button>
-        <button id="redoBtn" class="icon-btn" data-i18n-title="toolbar.redoTitle"><span class="i">↷</span><span data-i18n="toolbar.redo"></span></button>
-        <span class="tool-divider"></span>
-        <select id="formatBlock">
-          <option value="P" data-i18n="format.p"></option>
-          <option value="H1" data-i18n="format.h1"></option>
-          <option value="H2" data-i18n="format.h2"></option>
-          <option value="H3" data-i18n="format.h3"></option>
-        </select>
-        <span class="tool-divider"></span>
-        <button data-cmd="bold"><b>B</b></button>
-        <button data-cmd="italic"><i>I</i></button>
-        <button data-cmd="underline"><u>U</u></button>
-        <span class="tool-divider"></span>
-        <button id="fontSizeBtn" class="icon-btn"><span class="i">↕</span><span data-i18n="toolbar.fontSize"></span></button>
-        <button id="colorBtn" class="icon-btn"><span class="i">🎨</span><span data-i18n="toolbar.color"></span></button>
-        <span class="tool-divider"></span>
-        <button id="insertWikiLinkBtn" class="icon-btn"><span class="i">🧭</span><span data-i18n="toolbar.wiki"></span></button>
-        <button id="imageUrlBtn" class="icon-btn"><span class="i">🖼</span><span data-i18n="toolbar.image"></span></button>
-        <button id="insertTableBtn" class="icon-btn"><span class="i">▦</span><span data-i18n="toolbar.table"></span></button>
-        <span class="tool-divider"></span>
-        <button id="clearFormatBtn" class="icon-btn"><span class="i">🧹</span><span data-i18n="toolbar.body"></span></button>
+      <div id="editorToolbarHost" class="toolbar">
+        <div id="editorToolbar" class="wang-toolbar"></div>
       </div>
 
       <div class="workspace">
         <div id="editorWrap" class="editor-wrap">
-          <div id="editor" class="editor" contenteditable="true"></div>
+          <div id="editor" class="editor wang-editor"></div>
           <div class="meta">
             <span id="counter" data-i18n="counter.initial"></span>
             <span data-i18n="editor.pasteHint"></span>
@@ -87,10 +67,6 @@
         </div>
       </div>
     </section>
-  </div>
-
-  <div id="contextMenu" class="context-menu">
-    <button id="pasteImageBtn" type="button" data-i18n="context.pasteImage"></button>
   </div>
 
   <div id="pageItemMenu" class="context-menu">
@@ -114,70 +90,9 @@
     <button id="importReplaceBtn" type="button" data-i18n="menu.import.replace"></button>
   </div>
 
-  <div id="tableToolBar" class="table-toolbar">
-    <button id="tableExitBtn" type="button" data-i18n="table.exit"></button>
-    <button id="tableInsertRowBtn" type="button" data-i18n="table.insertRow"></button>
-    <button id="tableDeleteRowBtn" type="button" data-i18n="table.deleteRow"></button>
-    <button id="tableInsertColBtn" type="button" data-i18n="table.insertCol"></button>
-    <button id="tableDeleteColBtn" type="button" data-i18n="table.deleteCol"></button>
-    <button id="tableDeleteBtn" type="button" data-i18n="table.delete"></button>
-  </div>
-
-  <div id="imageToolMenu" class="image-tool-menu">
-    <div class="image-tool-title" data-i18n="image.title"></div>
-    <div class="image-tool-row">
-      <button id="imageDefaultBtn" type="button" data-i18n="image.defaultSize"></button>
-      <input id="imageWidthInput" type="number" min="1" step="1" data-i18n-placeholder="image.widthPlaceholder" />
-      <input id="imageHeightInput" type="number" min="1" step="1" data-i18n-placeholder="image.heightPlaceholder" />
-      <button id="imageResizeApplyBtn" type="button" data-i18n="image.applySize"></button>
-    </div>
-  </div>
-
-  <div id="palettePanel" class="emoji-panel palette-panel">
-    <div class="color-panel-title" data-i18n="palette.title"></div>
-    <div id="paletteModeTabs" class="palette-mode-tabs">
-      <button type="button" class="palette-mode-btn active" data-palette-mode="text" data-i18n="palette.mode.text"></button>
-      <button type="button" class="palette-mode-btn" data-palette-mode="bg" data-i18n="palette.mode.bg"></button>
-      <button type="button" class="palette-mode-btn" data-palette-mode="page" data-i18n="palette.mode.page"></button>
-    </div>
-    <ul id="paletteColorList" class="palette-color-list" role="listbox" data-i18n-aria-label="palette.aria"></ul>
-  </div>
-
-  <div id="fontSizePanel" class="emoji-panel font-size-panel">
-    <div class="color-panel-title" data-i18n="fontSize.title"></div>
-    <div id="fontSizeList" class="font-size-list">
-      <button class="font-size-item" type="button" data-size="12">12</button>
-      <button class="font-size-item" type="button" data-size="14">14</button>
-      <button class="font-size-item" type="button" data-size="16">16</button>
-      <button class="font-size-item" type="button" data-size="18">18</button>
-      <button class="font-size-item" type="button" data-size="20">20</button>
-      <button class="font-size-item" type="button" data-size="22">22</button>
-      <button class="font-size-item" type="button" data-size="24">24</button>
-      <button class="font-size-item" type="button" data-size="28">28</button>
-      <button class="font-size-item" type="button" data-size="32">32</button>
-      <button class="font-size-item" type="button" data-size="36">36</button>
-      <button class="font-size-item" type="button" data-size="42">42</button>
-      <button class="font-size-item" type="button" data-size="48">48</button>
-    </div>
-    <div class="font-size-custom">
-      <input id="fontSizeCustomInput" class="size-input" type="number" min="1" step="1" value="16" data-i18n-title="fontSize.customTitle" />
-      <button id="fontSizeCustomApplyBtn" type="button" data-i18n="common.apply"></button>
-    </div>
-  </div>
-
-  <div id="tablePanel" class="emoji-panel font-size-panel">
-    <div class="color-panel-title" data-i18n="table.title"></div>
-    <div class="table-custom">
-      <span class="table-label" data-i18n="table.rows"></span>
-      <input id="tableRowsInput" class="table-input" type="number" min="1" max="20" value="3" />
-      <span class="table-label" data-i18n="table.cols"></span>
-      <input id="tableColsInput" class="table-input" type="number" min="1" max="12" value="3" />
-      <button id="tableCustomApplyBtn" type="button" data-i18n="common.apply"></button>
-    </div>
-  </div>
-
   <input id="importJsonInput" type="file" accept="application/json,.json" style="display:none;" />
 
+  <script src="./wangeditor/index.js"></script>
   <script type="module" src="./js/main.js"></script>
 </body>
 </html>

@@ -101,7 +101,13 @@ export function createSearchBindings({ dom, search, setStatus }) {
   }
 
   function bindEditorRefresh() {
-    dom.editor.addEventListener("input", () => {
+    if (dom.editor) {
+      dom.editor.addEventListener("input", () => {
+        if (!latestQuery) return;
+        scheduleRender();
+      });
+    }
+    document.addEventListener("editor:content-change", () => {
       if (!latestQuery) return;
       scheduleRender();
     });

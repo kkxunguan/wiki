@@ -98,6 +98,31 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
     return template.innerHTML.trim() ? template.innerHTML : "<p></p>";
   }
 
+  function getEditorAdapter() {
+    const adapter = state.editorAdapter;
+    if (!adapter) return null;
+    if (typeof adapter.getHtml !== "function") return null;
+    if (typeof adapter.setHtml !== "function") return null;
+    return adapter;
+  }
+
+  function readEditorHtml() {
+    const adapter = getEditorAdapter();
+    if (adapter) return String(adapter.getHtml() || "");
+    if (!dom.editor) return "";
+    return String(dom.editor.innerHTML || "");
+  }
+
+  function writeEditorHtml(html) {
+    const safeHtml = sanitizeHtml(html);
+    const adapter = getEditorAdapter();
+    if (adapter) {
+      adapter.setHtml(safeHtml);
+      return;
+    }
+    if (dom.editor) dom.editor.innerHTML = safeHtml;
+  }
+
   function slugify(text) {
     return (text || "")
       .toLowerCase()
@@ -340,7 +365,7 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
 
   function renderPreview() {
     if (!dom.preview || !dom.toc) return;
-    dom.preview.innerHTML = linkifyWiki(sanitizeHtml(dom.editor.innerHTML));
+    dom.preview.innerHTML = linkifyWiki(sanitizeHtml(readEditorHtml()));
     const headings = dom.preview.querySelectorAll("h1, h2, h3");
     const used = new Set();
     dom.toc.innerHTML = "";
@@ -479,7 +504,7 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
     state.currentPage = clean;
     state.selectedPage = clean;
     const page = state.pages[clean];
-    dom.editor.innerHTML = sanitizeHtml(page.content || "<p></p>");
+    writeEditorHtml(page.content || "<p></p>");
     applyEditorBackground(page.pageBackground);
     renderPageList();
     onContentChanged();
@@ -500,7 +525,7 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
     }
 
     state.trashPreviewName = clean;
-    dom.editor.innerHTML = sanitizeHtml(state.trash[clean].content || "<p></p>");
+    writeEditorHtml(state.trash[clean].content || "<p></p>");
     applyEditorBackground(state.trash[clean].pageBackground);
     setStatus(t("status.trashPath", { path: buildTrashPath(clean) }));
     return true;
@@ -518,7 +543,7 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
     const hadEditorFocus = document.activeElement === dom.editor;
     const selectionSnapshot = captureEditorSelectionSnapshot();
     const oldName = state.currentPage;
-    const html = sanitizeHtml(dom.editor.innerHTML);
+    const html = sanitizeHtml(readEditorHtml());
     state.pages[oldName] = { ...state.pages[oldName], content: html };
     persistPages();
     renderPageList();

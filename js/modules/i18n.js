@@ -52,7 +52,7 @@ const messagesByLocale = {
 
     "counter.initial": "0 字",
     "counter.words": "{count} 字",
-    "editor.pasteHint": "右键编辑区可粘贴剪贴板图片（也支持 Ctrl+V）",
+    "editor.pasteHint": "使用 WangEditor 工具栏进行富文本编辑。",
     "editor.emptyPlaceholder": "输入 [[页面名]] 可创建 Wiki 内链",
 
     "context.pasteImage": "粘贴剪贴板图片",
@@ -200,6 +200,7 @@ const messagesByLocale = {
     "error.readLocalImageFailed": "读取本地图片失败",
     "error.inputOneOrTwo": "请输入 1 或 2",
     "error.searchPageMissing": "页面不存在：{page}",
+    "error.wangEditorLoadFailed": "WangEditor 加载失败，已降级为基础编辑器。",
 
     "prompt.wikiLink": "输入 Wiki 链接（页面名 或 页面名#标题）",
     "prompt.wikiLinkDefault": "首页#欢迎",
@@ -279,7 +280,7 @@ const messagesByLocale = {
 
     "counter.initial": "0 chars",
     "counter.words": "{count} chars",
-    "editor.pasteHint": "Right-click editor to paste clipboard images (Ctrl+V supported)",
+    "editor.pasteHint": "Use the WangEditor toolbar for rich-text editing.",
     "editor.emptyPlaceholder": "Type [[Page Name]] to create wiki links",
 
     "context.pasteImage": "Paste Clipboard Image",
@@ -427,6 +428,7 @@ const messagesByLocale = {
     "error.readLocalImageFailed": "Failed to read local image",
     "error.inputOneOrTwo": "Please input 1 or 2",
     "error.searchPageMissing": "Page not found: {page}",
+    "error.wangEditorLoadFailed": "WangEditor failed to load. Fallback editor is enabled.",
 
     "prompt.wikiLink": "Input Wiki link (Page or Page#Heading)",
     "prompt.wikiLinkDefault": "Home#Welcome",

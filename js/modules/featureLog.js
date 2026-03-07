@@ -15,6 +15,11 @@ export const FEATURE_LOG = [
     version: "v1.2.0",
     date: "2026-03-07",
     summary: "Feature changelog file and latest-version display in Wiki UI."
+  },
+  {
+    version: "v1.3.0",
+    date: "2026-03-07",
+    summary: "Replaced custom rich-text feature set with WangEditor integration."
   }
 ];
 
@@ -48,4 +53,3 @@ export function getLatestVersion() {
   const latest = getLatestFeatureEntry();
   return latest && latest.version ? latest.version : "v0.0.0";
 }
-

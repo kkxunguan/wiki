@@ -1,14 +1,11 @@
 ﻿import { dom } from "./modules/dom.js";
 import { STORAGE_KEY, STORAGE_TRASH_KEY, AUTO_SAVE_DELAY_MS, state } from "./modules/state.js";
 import { loadPages, savePages, loadJson, saveJson } from "./modules/storage.js";
-import { createPanels } from "./modules/panels.js";
 import { createEditor } from "./modules/editor.js";
 import { createWiki } from "./modules/wiki.js";
-import { createTableModule } from "./modules/table.js";
 import { setStatus as setStatusText, showMenuInViewport } from "./modules/app/ui.js";
 import { createModes } from "./modules/app/modes.js";
 import { createTransfer } from "./modules/app/transfer.js";
-import { createEditorBindings } from "./modules/app/editorBindings.js";
 import { createWikiBindings } from "./modules/app/wikiBindings.js";
 import { createSearch } from "./modules/search.js";
 import { createSearchBindings } from "./modules/app/searchBindings.js";
@@ -44,13 +41,9 @@ async function init() {
     editor.updateCounter();
     wiki.renderPreview();
     queueAutoSave();
-    editor.captureHistorySnapshot();
   };
 
-  const panels = createPanels(dom);
-
   editor = createEditor({ dom, state, onContentChanged, queueAutoSave, setStatus });
-  await editor.resetHistoryStorage();
   wiki = createWiki({
     dom,
     state,
@@ -60,7 +53,6 @@ async function init() {
     queueAutoSave,
     setStatus
   });
-  const tableModule = createTableModule({ dom, state, onContentChanged, queueAutoSave, setStatus });
 
   const modes = createModes({ dom, editor });
   const transfer = createTransfer({
@@ -71,18 +63,6 @@ async function init() {
     setStatus,
     storageKey: STORAGE_KEY,
     trashStorageKey: STORAGE_TRASH_KEY
-  });
-
-  const editorBindings = createEditorBindings({
-    dom,
-    state,
-    editor,
-    wiki,
-    panels,
-    tableModule,
-    setStatus,
-    queueAutoSave,
-    showMenuInViewport
   });
   const wikiBindings = createWikiBindings({
     dom,
@@ -127,22 +107,10 @@ async function init() {
     });
   }
 
-  editorBindings.bindAll();
   wikiBindings.bindAll();
   searchBindings.bindAll();
   i18nBindings.bindAll();
   versionBindings.bindAll();
-
-  panels.bindGlobalDismiss(["#contextMenu", "#tableToolBar"]);
-
-  tableModule.bindResizeBehavior();
-  tableModule.bindToolbarActions();
-  tableModule.bindTableSelectionTracking();
-
-  dom.editor.addEventListener("input", onContentChanged);
-  editor.bindSelectionTracking();
-  editor.bindReadOnlyGuard();
-  editor.bindImageTooling();
 
   wiki.bindPreviewLinks();
   wiki.bindTrashActions();
