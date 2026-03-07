@@ -7,6 +7,7 @@ const messagesByLocale = {
     "locale.label": "语言",
     "locale.zhCN": "简体中文",
     "locale.enUS": "English",
+    "version.latest": "最新版本：{version}",
 
     "common.separator": " · ",
     "common.apply": "应用",
@@ -233,6 +234,7 @@ const messagesByLocale = {
     "locale.label": "Language",
     "locale.zhCN": "Chinese (Simplified)",
     "locale.enUS": "English",
+    "version.latest": "Latest Version: {version}",
 
     "common.separator": " · ",
     "common.apply": "Apply",

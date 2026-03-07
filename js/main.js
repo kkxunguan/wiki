@@ -14,11 +14,13 @@ import { createSearch } from "./modules/search.js";
 import { createSearchBindings } from "./modules/app/searchBindings.js";
 import { applyI18n, t } from "./modules/i18n.js";
 import { createI18nBindings } from "./modules/app/i18nBindings.js";
+import { createVersionBindings } from "./modules/app/versionBindings.js";
 
 let wiki;
 let editor;
 let searchBindings;
 let i18nBindings;
+let versionBindings;
 
 function createQueueAutoSave() {
   return function queueAutoSave() {
@@ -110,6 +112,7 @@ async function init() {
     editor,
     searchBindings
   });
+  versionBindings = createVersionBindings({ dom });
 
   state.pages = wiki.normalizePages(await loadPages(STORAGE_KEY));
   state.trash = wiki.normalizeTrash(await loadJson(STORAGE_TRASH_KEY, {}));
@@ -128,6 +131,7 @@ async function init() {
   wikiBindings.bindAll();
   searchBindings.bindAll();
   i18nBindings.bindAll();
+  versionBindings.bindAll();
 
   panels.bindGlobalDismiss(["#contextMenu", "#tableToolBar"]);
 

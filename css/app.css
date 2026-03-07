@@ -65,6 +65,11 @@ body {
 }
 
 .sidebar-top h2 { margin: 0 0 8px; font-size: 14.4px; }
+.latest-version {
+  margin: -2px 0 8px;
+  font-size: 10px;
+  color: var(--muted);
+}
 .section-title { margin: 9.6px 0 6.4px; font-size: 10.4px; color: var(--muted); font-weight: 600; }
 .row { display: flex; gap: 6.4px; margin-bottom: 6.4px; }
 .row:last-child { margin-bottom: 0; }

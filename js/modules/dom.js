@@ -11,6 +11,7 @@
   clearSearchBtn: document.getElementById("clearSearchBtn"),
   globalSearchResultMeta: document.getElementById("globalSearchResultMeta"),
   globalSearchResults: document.getElementById("globalSearchResults"),
+  latestVersionEl: document.getElementById("latestVersion"),
   quickCreatePageBtn: document.getElementById("quickCreatePageBtn"),
   importJsonBtn: document.getElementById("importJsonBtn"),
   exportJsonBtn: document.getElementById("exportJsonBtn"),
