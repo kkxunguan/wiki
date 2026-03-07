@@ -10,6 +10,8 @@ import { createModes } from "./modules/app/modes.js";
 import { createTransfer } from "./modules/app/transfer.js";
 import { createEditorBindings } from "./modules/app/editorBindings.js";
 import { createWikiBindings } from "./modules/app/wikiBindings.js";
+import { createSearch } from "./modules/search.js";
+import { createSearchBindings } from "./modules/app/searchBindings.js";
 
 let wiki;
 let editor;
@@ -81,6 +83,17 @@ async function init() {
     exportAllToJson: transfer.exportAllToJson,
     importFromJsonText: transfer.importFromJsonText
   });
+  const search = createSearch({
+    state,
+    wiki,
+    editor,
+    setStatus
+  });
+  const searchBindings = createSearchBindings({
+    dom,
+    search,
+    setStatus
+  });
 
   state.pages = wiki.normalizePages(await loadPages(STORAGE_KEY));
   state.trash = wiki.normalizeTrash(await loadJson(STORAGE_TRASH_KEY, {}));
@@ -90,6 +103,7 @@ async function init() {
 
   editorBindings.bindAll();
   wikiBindings.bindAll();
+  searchBindings.bindAll();
 
   panels.bindGlobalDismiss(["#contextMenu", "#tableToolBar"]);
 

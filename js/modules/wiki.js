@@ -266,6 +266,28 @@
     return date.toLocaleTimeString("zh-CN", { hour12: false });
   }
 
+  function captureEditorSelectionSnapshot() {
+    if (!dom.editor) return null;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return null;
+    const range = sel.getRangeAt(0);
+    if (!dom.editor.contains(range.commonAncestorContainer)) return null;
+    return range.cloneRange();
+  }
+
+  function restoreEditorSelectionSnapshot(rangeSnapshot, shouldFocus = false) {
+    if (!rangeSnapshot || !dom.editor) return;
+    const sel = window.getSelection();
+    if (!sel) return;
+    try {
+      sel.removeAllRanges();
+      sel.addRange(rangeSnapshot);
+      if (shouldFocus && document.activeElement !== dom.editor) {
+        dom.editor.focus({ preventScroll: true });
+      }
+    } catch {}
+  }
+
   function linkifyWiki(html) {
     function parseWikiTarget(rawText) {
       const raw = sanitizeName(rawText);
@@ -483,6 +505,8 @@
       if (!silent) setStatus("请先创建或打开页面");
       return false;
     }
+    const hadEditorFocus = document.activeElement === dom.editor;
+    const selectionSnapshot = captureEditorSelectionSnapshot();
     const oldName = state.currentPage;
     const html = sanitizeHtml(dom.editor.innerHTML);
     state.pages[oldName] = { ...state.pages[oldName], content: html };
@@ -496,6 +520,7 @@
         ? `已自动保存：${path} · ${timeText}`
         : `已保存页面：${path} · ${timeText}`
     );
+    restoreEditorSelectionSnapshot(selectionSnapshot, hadEditorFocus);
     return true;
   }
 

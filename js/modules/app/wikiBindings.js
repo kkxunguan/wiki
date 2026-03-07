@@ -97,6 +97,19 @@ export function createWikiBindings({
     const findPageItemEl = (pageName) => Array.from(dom.pageList.querySelectorAll(".page-item"))
       .find((el) => wiki.sanitizeName(el.dataset.page) === pageName);
 
+    const clearEditorCaret = () => {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        if (dom.editor.contains(range.commonAncestorContainer)) {
+          selection.removeAllRanges();
+        }
+      }
+      if (document.activeElement === dom.editor) {
+        dom.editor.blur();
+      }
+    };
+
     const hideRenameInput = () => {
       if (renameInputEl && renameInputEl.parentNode) renameInputEl.remove();
       if (renamingNameSpan) renamingNameSpan.style.visibility = "";
@@ -206,6 +219,7 @@ export function createWikiBindings({
       if (e.target.closest(".page-rename-input")) return;
       const item = e.target.closest(".page-item");
       if (item) {
+        clearEditorCaret();
         if (renameInputEl && item !== renamingItemEl) hideRenameInput();
         const pageName = wiki.sanitizeName(item.dataset.page);
         if (pageName) {
@@ -233,6 +247,8 @@ export function createWikiBindings({
     document.addEventListener("click", (e) => {
       if (!state.selectedPage) return;
       if (modes.getTreeMode() !== "pages") return;
+      // Keep tree selection while interacting with the main editor area.
+      if (e.target.closest(".main")) return;
       if (e.target.closest(".page-item")) return;
       if (e.target.closest("#pageItemMenu")) return;
       if (e.target.closest(".page-rename-input")) return;

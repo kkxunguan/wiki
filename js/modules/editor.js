@@ -624,6 +624,101 @@
     if (readOnly) hideImageToolMenu();
   }
 
+  function buildNormalizedEditorTextWithMap() {
+    const walker = document.createTreeWalker(dom.editor, NodeFilter.SHOW_TEXT);
+    const map = [];
+    let text = "";
+    let hasOutput = false;
+    let previousWasSpace = true;
+    let node = walker.nextNode();
+
+    while (node) {
+      const source = String(node.textContent || "");
+      for (let i = 0; i < source.length; i += 1) {
+        const ch = source[i];
+        const isSpace = /\s/.test(ch);
+        if (isSpace) {
+          if (!hasOutput || previousWasSpace) continue;
+          text += " ";
+          map.push({ node, offset: i });
+          previousWasSpace = true;
+          hasOutput = true;
+          continue;
+        }
+        text += ch;
+        map.push({ node, offset: i });
+        previousWasSpace = false;
+        hasOutput = true;
+      }
+      node = walker.nextNode();
+    }
+
+    if (text.endsWith(" ")) {
+      text = text.slice(0, -1);
+      map.pop();
+    }
+
+    return { text, map };
+  }
+
+  function findOccurrenceStartIndex(sourceText, keywordText, occurrenceIndex = 0) {
+    const sourceLower = String(sourceText || "").toLowerCase();
+    const keywordLower = String(keywordText || "").toLowerCase();
+    if (!keywordLower) return -1;
+
+    let start = 0;
+    let count = 0;
+    while (start <= sourceLower.length) {
+      const found = sourceLower.indexOf(keywordLower, start);
+      if (found === -1) return -1;
+      if (count === occurrenceIndex) return found;
+      count += 1;
+      start = found + Math.max(1, keywordLower.length);
+    }
+    return -1;
+  }
+
+  function jumpToTextOccurrence(rawKeyword, rawOccurrence = 0) {
+    const keyword = String(rawKeyword || "").trim();
+    if (!keyword) return false;
+
+    const occurrence = Math.max(0, Number(rawOccurrence) || 0);
+    const { text, map } = buildNormalizedEditorTextWithMap();
+    if (!text || !map.length) return false;
+
+    const startIndex = findOccurrenceStartIndex(text, keyword, occurrence);
+    if (startIndex < 0) return false;
+    const endIndex = startIndex + keyword.length - 1;
+    const startPoint = map[startIndex];
+    const endPoint = map[endIndex];
+    if (!startPoint || !endPoint) return false;
+
+    const range = document.createRange();
+    range.setStart(startPoint.node, startPoint.offset);
+    range.setEnd(endPoint.node, endPoint.offset + 1);
+
+    const selection = window.getSelection();
+    if (selection) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    const startElement = startPoint.node.parentElement;
+    const focusEl = startElement
+      ? (startElement.closest("p,h1,h2,h3,li,td,th,blockquote,div") || startElement)
+      : null;
+    if (focusEl && focusEl.scrollIntoView) {
+      focusEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (focusEl.classList) {
+        focusEl.classList.add("jump-target");
+        setTimeout(() => focusEl.classList.remove("jump-target"), 1200);
+      }
+    }
+
+    state.savedRange = range.cloneRange();
+    return true;
+  }
+
   function bindSelectionTracking() {
     dom.editor.addEventListener("mouseup", saveSelectionIfInsideEditor);
     dom.editor.addEventListener("keyup", saveSelectionIfInsideEditor);
@@ -886,6 +981,7 @@
     isEditorContext,
     isReadOnly,
     setReadOnly,
+    jumpToTextOccurrence,
     saveSelectionIfInsideEditor,
     restoreSavedSelection,
     bindSelectionTracking,

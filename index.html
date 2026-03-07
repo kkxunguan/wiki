@@ -25,6 +25,15 @@
           <button id="showTrashBtn" class="mode-tab" type="button">回收站</button>
         </div>
       </div>
+      <div class="sidebar-search">
+        <div class="section-title">全局搜索</div>
+        <div class="search-input-row">
+          <input id="globalSearchInput" type="text" placeholder="输入关键词搜索全部页面" />
+          <button id="clearSearchBtn" type="button">清空</button>
+        </div>
+        <div id="globalSearchResultMeta" class="search-meta hidden"></div>
+      </div>
+      <div id="globalSearchResults" class="search-results hidden"></div>
       <div id="pageList" class="page-list"></div>
       <div id="trashList" class="page-list hidden"></div>
     </aside>
