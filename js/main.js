@@ -23,6 +23,13 @@ function setStatus(text) {
     return;
   }
 
+  const trashPathMatch = content.match(/^回收站路径：(.+)$/);
+  if (trashPathMatch) {
+    if (dom.pagePathEl) dom.pagePathEl.textContent = trashPathMatch[1].trim();
+    dom.statusEl.textContent = "回收站预览";
+    return;
+  }
+
   dom.statusEl.textContent = content;
 }
 
@@ -217,6 +224,12 @@ function switchToEditMode() {
   applyMode();
 }
 
+function switchToReadMode() {
+  if (isReadMode) return;
+  isReadMode = true;
+  applyMode();
+}
+
 function queueAutoSave() {
   if (state.autoSaveTimer) clearTimeout(state.autoSaveTimer);
   state.autoSaveTimer = setTimeout(() => {
@@ -400,6 +413,11 @@ function bindAutoSaveLifecycle() {
 }
 
 function bindWikiActions() {
+  dom.trashList.addEventListener("click", (e) => {
+    if (!e.target.closest("[data-trash-name]")) return;
+    switchToReadMode();
+  });
+
   dom.quickCreatePageBtn.addEventListener("click", () => {
     if (treeMode !== "pages") {
       setStatus("回收站视图下不可新建页面");
@@ -469,12 +487,116 @@ function bindWikiActions() {
 }
 
 function bindPageTreeContextMenu() {
+  let renamingPage = "";
+  let renameInputEl = null;
+  let renamingItemEl = null;
+  let renamingNameSpan = null;
+  let renamingMetaSpan = null;
+  let lastClickPage = "";
+  let lastClickAt = 0;
+
   const showMenu = (x, y, pageName) => {
     dom.pageItemMenu.dataset.page = pageName;
     showMenuInViewport(dom.pageItemMenu, x, y);
   };
 
   const getTargetPage = () => wiki.sanitizeName(dom.pageItemMenu.dataset.page);
+  const findPageItemEl = (pageName) => Array.from(dom.pageList.querySelectorAll(".page-item"))
+    .find((el) => wiki.sanitizeName(el.dataset.page) === pageName);
+
+  const hideRenameInput = () => {
+    if (renameInputEl && renameInputEl.parentNode) renameInputEl.remove();
+    if (renamingNameSpan) renamingNameSpan.style.visibility = "";
+    if (renamingMetaSpan) renamingMetaSpan.style.visibility = "";
+    if (renamingItemEl) renamingItemEl.classList.remove("renaming");
+    const selection = window.getSelection();
+    if (selection) selection.removeAllRanges();
+    renameInputEl = null;
+    renamingItemEl = null;
+    renamingNameSpan = null;
+    renamingMetaSpan = null;
+    renamingPage = "";
+  };
+
+  const commitRename = () => {
+    if (!renameInputEl) return;
+    const oldName = renamingPage;
+    const nextName = wiki.sanitizeName(renameInputEl.value);
+    hideRenameInput();
+    if (!oldName) return;
+    if (!nextName || nextName === oldName) return;
+    if (!wiki.renamePage(oldName, nextName)) return;
+    wiki.openPage(nextName);
+  };
+
+  const showRenameInput = (pageName) => {
+    const cleanName = wiki.sanitizeName(pageName);
+    if (!cleanName || !state.pages[cleanName]) return;
+    if (state.autoSaveTimer) {
+      clearTimeout(state.autoSaveTimer);
+      state.autoSaveTimer = null;
+      wiki.saveCurrentPage(true);
+    }
+
+    const item = findPageItemEl(cleanName);
+    if (!item) return;
+    if (renameInputEl && renamingPage === cleanName) {
+      renameInputEl.focus();
+      renameInputEl.select();
+      return;
+    }
+    if (renameInputEl) commitRename();
+
+    renamingPage = cleanName;
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "title-input page-rename-input";
+    input.value = cleanName;
+    input.maxLength = 120;
+    input.spellcheck = false;
+    input.setAttribute("autocomplete", "off");
+    input.setAttribute("autocorrect", "off");
+    input.setAttribute("autocapitalize", "off");
+    input.setAttribute("data-gramm", "false");
+    item.style.position = "relative";
+    item.classList.add("renaming");
+    renamingItemEl = item;
+    renamingNameSpan = item.querySelector("span");
+    renamingMetaSpan = item.querySelector(".meta-text");
+    if (renamingNameSpan) renamingNameSpan.style.visibility = "hidden";
+    if (renamingMetaSpan) renamingMetaSpan.style.visibility = "hidden";
+    item.appendChild(input);
+    renameInputEl = input;
+
+    input.focus();
+    const cursorPos = input.value.length;
+    input.setSelectionRange(cursorPos, cursorPos);
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        commitRename();
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        hideRenameInput();
+      }
+    });
+
+    input.addEventListener("click", (e) => e.stopPropagation());
+    input.addEventListener("dblclick", (e) => e.stopPropagation());
+    input.addEventListener("blur", () => {
+      // 失焦时：有输入则提交，空输入则保持原名并关闭输入框
+      const nextName = wiki.sanitizeName(input.value);
+      if (!nextName) {
+        hideRenameInput();
+        return;
+      }
+      commitRename();
+    });
+  };
 
   dom.pageList.addEventListener("contextmenu", (e) => {
     const item = e.target.closest(".page-item");
@@ -489,12 +611,29 @@ function bindPageTreeContextMenu() {
   });
 
   dom.pageList.addEventListener("click", (e) => {
+    if (e.target.closest(".page-rename-input")) return;
     const item = e.target.closest(".page-item");
     if (item) {
+      if (renameInputEl && item !== renamingItemEl) hideRenameInput();
       const pageName = wiki.sanitizeName(item.dataset.page);
-      if (pageName) state.selectedPage = pageName;
+      if (pageName) {
+        state.selectedPage = pageName;
+        const now = Date.now();
+        if (lastClickPage === pageName && now - lastClickAt <= 320) {
+          // 节点点击会触发列表重渲染，延后一帧再显示重命名输入框更稳定
+          requestAnimationFrame(() => showRenameInput(pageName));
+          lastClickPage = "";
+          lastClickAt = 0;
+        } else {
+          lastClickPage = pageName;
+          lastClickAt = now;
+        }
+      }
       return;
     }
+    hideRenameInput();
+    lastClickPage = "";
+    lastClickAt = 0;
     if (!state.selectedPage) return;
     state.selectedPage = "";
     wiki.renderPageList();
@@ -505,19 +644,10 @@ function bindPageTreeContextMenu() {
     if (treeMode !== "pages") return;
     if (e.target.closest(".page-item")) return;
     if (e.target.closest("#pageItemMenu")) return;
+    if (e.target.closest(".page-rename-input")) return;
+    hideRenameInput();
     state.selectedPage = "";
     wiki.renderPageList();
-  });
-
-  dom.pageList.addEventListener("dblclick", (e) => {
-    const item = e.target.closest(".page-item");
-    if (!item) return;
-    const page = wiki.sanitizeName(item.dataset.page);
-    if (!page) return;
-    const nextName = wiki.sanitizeName(prompt("重命名页面", page));
-    if (!nextName) return;
-    if (!wiki.renamePage(page, nextName)) return;
-    wiki.openPage(nextName);
   });
 
   dom.pageMenuOpenBtn.addEventListener("click", () => {
@@ -541,10 +671,31 @@ function bindPageTreeContextMenu() {
   dom.pageMenuRenameBtn.addEventListener("click", () => {
     const page = getTargetPage();
     if (!page) return;
-    const nextName = wiki.sanitizeName(prompt("重命名页面", page));
-    if (!nextName) return;
-    if (!wiki.renamePage(page, nextName)) return;
-    wiki.openPage(nextName);
+    showRenameInput(page);
+    dom.pageItemMenu.style.display = "none";
+  });
+
+  dom.pageMenuSortUpBtn.addEventListener("click", () => {
+    const page = getTargetPage();
+    if (!page) return;
+    wiki.movePageSort(page, "up");
+    dom.pageItemMenu.style.display = "none";
+  });
+
+  dom.pageMenuSortDownBtn.addEventListener("click", () => {
+    const page = getTargetPage();
+    if (!page) return;
+    wiki.movePageSort(page, "down");
+    dom.pageItemMenu.style.display = "none";
+  });
+
+  dom.pageMenuSetSortBtn.addEventListener("click", () => {
+    const page = getTargetPage();
+    if (!page || !state.pages[page]) return;
+    const current = Number(state.pages[page].sortKey ?? state.pages[page].order ?? 0);
+    const input = prompt("输入排序值（数字，越小越靠前）", String(current));
+    if (input === null) return;
+    wiki.setPageSortKey(page, input);
     dom.pageItemMenu.style.display = "none";
   });
 
@@ -561,21 +712,32 @@ function bindPageTreeContextMenu() {
     wiki.deletePageByName(page);
     dom.pageItemMenu.style.display = "none";
   });
+
+  dom.pageMenuDeleteKeepChildrenBtn.addEventListener("click", () => {
+    const page = getTargetPage();
+    if (!page) return;
+    wiki.deletePageKeepChildrenByName(page);
+    dom.pageItemMenu.style.display = "none";
+  });
 }
 
 function bindPageTreeDragDrop() {
   let draggingPage = "";
-  let dropMode = "";
+  const isRenamingPage = () => Boolean(dom.pageList.querySelector(".page-item.renaming"));
 
   function clearDragMarks(includeDragging = false) {
     const selector = includeDragging
-      ? ".page-item.drag-over, .page-item.drag-before, .page-item.drag-after, .page-item.dragging"
-      : ".page-item.drag-over, .page-item.drag-before, .page-item.drag-after";
+      ? ".page-item.drag-over, .page-item.dragging"
+      : ".page-item.drag-over";
     dom.pageList.querySelectorAll(selector)
       .forEach((el) => el.classList.remove("drag-over", "drag-before", "drag-after", "dragging"));
   }
 
   dom.pageList.addEventListener("dragstart", (e) => {
+    if (isRenamingPage()) {
+      e.preventDefault();
+      return;
+    }
     const item = e.target.closest(".page-item");
     if (!item) return;
     draggingPage = item.dataset.page || "";
@@ -588,43 +750,31 @@ function bindPageTreeDragDrop() {
 
   dom.pageList.addEventListener("dragend", () => {
     draggingPage = "";
-    dropMode = "";
     clearDragMarks(true);
   });
 
   dom.pageList.addEventListener("dragover", (e) => {
+    if (isRenamingPage()) return;
     const item = e.target.closest(".page-item");
     if (!item) return;
     e.preventDefault();
     clearDragMarks();
-    const rect = item.getBoundingClientRect();
-    const ratio = (e.clientY - rect.top) / Math.max(1, rect.height);
-    if (ratio < 0.28) {
-      item.classList.add("drag-before");
-      dropMode = "before";
-    } else if (ratio > 0.72) {
-      item.classList.add("drag-after");
-      dropMode = "after";
-    } else {
-      item.classList.add("drag-over");
-      dropMode = "inside";
-    }
+    item.classList.add("drag-over");
     if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
   });
 
   dom.pageList.addEventListener("drop", (e) => {
+    if (isRenamingPage()) {
+      e.preventDefault();
+      return;
+    }
     const item = e.target.closest(".page-item");
     if (!item || !draggingPage) return;
     e.preventDefault();
     const targetPage = item.dataset.page || "";
     clearDragMarks();
     if (!targetPage || draggingPage === targetPage) return;
-    if (dropMode === "before" || dropMode === "after") {
-      wiki.reorderPage(draggingPage, targetPage, dropMode);
-    } else {
-      wiki.movePage(draggingPage, targetPage);
-    }
-    dropMode = "";
+    wiki.movePage(draggingPage, targetPage);
     if (state.currentPage === draggingPage) wiki.openPage(draggingPage);
   });
 }

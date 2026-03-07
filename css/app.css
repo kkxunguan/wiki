@@ -92,7 +92,7 @@ select { min-width: 80px; }
 button:hover, select:hover, .page-item:hover { border-color: var(--accent); }
 .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-.page-list { padding: 6.4px; overflow: auto; flex: 1; }
+.page-list { padding: 6.4px; overflow-y: auto; overflow-x: hidden; flex: 1; }
 .page-item {
   border: 1px solid transparent;
   border-radius: 6.4px;
@@ -112,6 +112,52 @@ button:hover, select:hover, .page-item:hover { border-color: var(--accent); }
 .page-item.drag-before { border-top: 2px solid var(--accent); }
 .page-item.drag-after { border-bottom: 2px solid var(--accent); }
 .page-item.dragging { opacity: 0.55; }
+.page-item.renaming { position: relative; }
+.page-item .page-rename-input {
+  position: absolute;
+  left: 8px;
+  right: auto;
+  width: calc(100% - 16px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  height: 20px;
+  padding: 0;
+  border: 0 !important;
+  border-bottom: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  appearance: none;
+  -webkit-appearance: none;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-decoration: none !important;
+  -webkit-text-decoration: none !important;
+  text-decoration-line: none !important;
+  -webkit-text-fill-color: currentColor;
+}
+.page-item .page-rename-input:focus,
+.page-item .page-rename-input:focus-visible,
+.page-item .page-rename-input:active {
+  outline: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  border-bottom: 0 !important;
+  text-decoration: none !important;
+  text-decoration-line: none !important;
+}
+.page-item .page-rename-input::-webkit-input-placeholder,
+.page-item .page-rename-input::placeholder {
+  text-decoration: none !important;
+}
+.page-item .page-rename-input::spelling-error,
+.page-item .page-rename-input::grammar-error {
+  text-decoration: none !important;
+}
 .meta-text { color: var(--muted); font-size: 9.6px; white-space: nowrap; font-weight: 400; }
 .trash-item-meta { font-size: 8.8px; color: var(--muted); }
 .trash-node-root {

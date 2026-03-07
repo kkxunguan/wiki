@@ -18,6 +18,47 @@
     return (name || "").trim();
   }
 
+  function escapeHtml(text) {
+    return String(text || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function sanitizeHtml(inputHtml) {
+    const template = document.createElement("template");
+    template.innerHTML = String(inputHtml || "");
+    const blockedTags = new Set([
+      "SCRIPT", "STYLE", "IFRAME", "OBJECT", "EMBED", "META", "LINK", "BASE", "FORM",
+      "SVG", "MATH"
+    ]);
+
+    const elements = Array.from(template.content.querySelectorAll("*"));
+    elements.forEach((el) => {
+      if (blockedTags.has(el.tagName)) {
+        el.remove();
+        return;
+      }
+
+      Array.from(el.attributes).forEach((attr) => {
+        const attrName = attr.name.toLowerCase();
+        const attrValue = String(attr.value || "").trim();
+        if (attrName.startsWith("on") || attrName === "srcdoc") {
+          el.removeAttribute(attr.name);
+          return;
+        }
+        const isUrlAttr = attrName === "href" || attrName === "src" || attrName === "xlink:href";
+        if (isUrlAttr && /^\s*javascript:/i.test(attrValue)) {
+          el.removeAttribute(attr.name);
+        }
+      });
+    });
+
+    return template.innerHTML.trim() ? template.innerHTML : "<p></p>";
+  }
+
   function slugify(text) {
     return (text || "")
       .toLowerCase()
@@ -42,13 +83,16 @@
       const page = source[name] || {};
       const parentKey = page.parent || "__root__";
       const fallbackOrder = siblingCursor[parentKey] || 0;
-      const normalizedOrder = Number.isFinite(Number(page.order)) ? Number(page.order) : fallbackOrder;
+      const normalizedSortKey = Number.isFinite(Number(page.sortKey))
+        ? Number(page.sortKey)
+        : (Number.isFinite(Number(page.order)) ? Number(page.order) : fallbackOrder);
       siblingCursor[parentKey] = fallbackOrder + 1;
       out[name] = {
         title: page.title || name,
-        content: page.content || "<p></p>",
+        content: sanitizeHtml(page.content || "<p></p>"),
         parent: page.parent || null,
-        order: normalizedOrder
+        sortKey: normalizedSortKey,
+        order: normalizedSortKey
       };
     });
     Object.keys(out).forEach((name) => {
@@ -63,11 +107,15 @@
     const out = {};
     Object.keys(source || {}).forEach((name) => {
       const item = source[name] || {};
+      const sortKey = Number.isFinite(Number(item.sortKey))
+        ? Number(item.sortKey)
+        : (Number.isFinite(Number(item.order)) ? Number(item.order) : 0);
       out[name] = {
         title: item.title || name,
-        content: item.content || "<p></p>",
+        content: sanitizeHtml(item.content || "<p></p>"),
         parent: item.parent || null,
-        order: Number.isFinite(Number(item.order)) ? Number(item.order) : 0,
+        sortKey,
+        order: sortKey,
         root: item.root || name,
         depth: Number.isFinite(Number(item.depth)) ? Number(item.depth) : 0,
         deletedAt: item.deletedAt || new Date().toISOString()
@@ -85,8 +133,17 @@
       else map.__root__.push(name);
     });
     Object.keys(map).forEach((k) => map[k].sort((a, b) => {
-      const ao = Number.isFinite(Number(state.pages[a].order)) ? Number(state.pages[a].order) : 0;
-      const bo = Number.isFinite(Number(state.pages[b].order)) ? Number(state.pages[b].order) : 0;
+      const pageA = state.pages[a];
+      const pageB = state.pages[b];
+      if (!pageA && !pageB) return 0;
+      if (!pageA) return 1;
+      if (!pageB) return -1;
+      const ao = Number.isFinite(Number(pageA.sortKey))
+        ? Number(pageA.sortKey)
+        : (Number.isFinite(Number(pageA.order)) ? Number(pageA.order) : 0);
+      const bo = Number.isFinite(Number(pageB.sortKey))
+        ? Number(pageB.sortKey)
+        : (Number.isFinite(Number(pageB.order)) ? Number(pageB.order) : 0);
       if (ao !== bo) return ao - bo;
       return a.localeCompare(b, "zh-CN");
     }));
@@ -94,34 +151,29 @@
   }
 
   function normalizeAllSiblingOrders(pages = state.pages) {
-    const groups = { __root__: [] };
-    Object.keys(pages).forEach((name) => { groups[name] = []; });
     Object.keys(pages).forEach((name) => {
-      const parent = pages[name].parent;
-      const key = parent && pages[parent] ? parent : "__root__";
-      groups[key].push(name);
-    });
-    Object.keys(groups).forEach((parentKey) => {
-      groups[parentKey]
-        .sort((a, b) => {
-          const ao = Number.isFinite(Number(pages[a].order)) ? Number(pages[a].order) : 0;
-          const bo = Number.isFinite(Number(pages[b].order)) ? Number(pages[b].order) : 0;
-          if (ao !== bo) return ao - bo;
-          return a.localeCompare(b, "zh-CN");
-        })
-        .forEach((name, idx) => { pages[name].order = idx; });
+      const page = pages[name];
+      if (!page) return;
+      const sortKey = Number.isFinite(Number(page.sortKey))
+        ? Number(page.sortKey)
+        : (Number.isFinite(Number(page.order)) ? Number(page.order) : 0);
+      page.sortKey = sortKey;
+      page.order = sortKey;
     });
   }
 
-  function nextOrderForParent(parent) {
+  function nextSortKeyForParent(parent) {
     const parentKey = parent || null;
-    let maxOrder = -1;
+    let maxSortKey = -1;
     Object.keys(state.pages).forEach((name) => {
       if ((state.pages[name].parent || null) !== parentKey) return;
-      const o = Number(state.pages[name].order);
-      if (Number.isFinite(o) && o > maxOrder) maxOrder = o;
+      const page = state.pages[name];
+      const v = Number.isFinite(Number(page.sortKey))
+        ? Number(page.sortKey)
+        : Number(page.order);
+      if (Number.isFinite(v) && v > maxSortKey) maxSortKey = v;
     });
-    return maxOrder + 1;
+    return maxSortKey + 1;
   }
 
   function isDescendant(candidateParent, nodeName) {
@@ -146,6 +198,34 @@
       seen.add(p);
       p = state.pages[p].parent;
     }
+    return segs.join(" / ");
+  }
+
+  function buildTrashPath(name) {
+    if (!state.trash[name]) return name;
+    const segs = [name];
+    const seen = new Set([name]);
+    let parent = state.trash[name].parent;
+
+    while (parent && !seen.has(parent)) {
+      seen.add(parent);
+      segs.unshift(parent);
+      if (state.trash[parent]) {
+        parent = state.trash[parent].parent;
+        continue;
+      }
+      if (state.pages[parent]) {
+        let p = state.pages[parent].parent;
+        const seenPages = new Set([parent]);
+        while (p && state.pages[p] && !seenPages.has(p)) {
+          segs.unshift(p);
+          seenPages.add(p);
+          p = state.pages[p].parent;
+        }
+      }
+      break;
+    }
+
     return segs.join(" / ");
   }
 
@@ -175,7 +255,7 @@
       if (!parsed || !parsed.page) return full;
       const pagePart = encodeURIComponent(parsed.page);
       const anchorPart = encodeURIComponent(parsed.anchor || "");
-      return `<a href="#" data-wiki-page="${pagePart}" data-wiki-anchor="${anchorPart}">${parsed.label}</a>`;
+      return `<a href="#" data-wiki-page="${pagePart}" data-wiki-anchor="${anchorPart}">${escapeHtml(parsed.label)}</a>`;
     });
   }
 
@@ -196,7 +276,7 @@
 
   function renderPreview() {
     if (!dom.preview || !dom.toc) return;
-    dom.preview.innerHTML = linkifyWiki(dom.editor.innerHTML);
+    dom.preview.innerHTML = linkifyWiki(sanitizeHtml(dom.editor.innerHTML));
     const headings = dom.preview.querySelectorAll("h1, h2, h3");
     const used = new Set();
     dom.toc.innerHTML = "";
@@ -208,7 +288,11 @@
       h.id = id;
       const li = document.createElement("li");
       li.style.paddingLeft = level === "h1" ? "0" : level === "h2" ? "12px" : "24px";
-      li.innerHTML = `<a href="#${id}" data-anchor="1">${h.textContent || id}</a>`;
+      const a = document.createElement("a");
+      a.href = `#${id}`;
+      a.dataset.anchor = "1";
+      a.textContent = h.textContent || id;
+      li.appendChild(a);
       dom.toc.appendChild(li);
     });
     if (!dom.toc.children.length) {
@@ -220,6 +304,8 @@
     const map = getChildrenMap();
     dom.pageList.innerHTML = "";
     const append = (name, depth) => {
+      const page = state.pages[name];
+      if (!page) return;
       const item = document.createElement("div");
       const activeCls = name === state.currentPage ? " active" : "";
       const selectedCls = name === state.selectedPage ? " selected" : "";
@@ -227,8 +313,17 @@
       item.style.marginLeft = `${depth * 16}px`;
       item.dataset.page = name;
       item.draggable = true;
-      const wc = (state.pages[name].content || "").replace(/<[^>]+>/g, "").replace(/\s+/g, "").length;
-      item.innerHTML = `<span>${name}</span><span class="meta-text">${wc}字</span>`;
+      const wc = (page.content || "").replace(/<[^>]+>/g, "").replace(/\s+/g, "").length;
+      const sortKey = Number.isFinite(Number(page.sortKey))
+        ? Number(page.sortKey)
+        : (Number.isFinite(Number(page.order)) ? Number(page.order) : 0);
+      const nameEl = document.createElement("span");
+      nameEl.textContent = name;
+      const metaEl = document.createElement("span");
+      metaEl.className = "meta-text";
+      metaEl.textContent = `${wc}字 · 排序${sortKey}`;
+      item.appendChild(nameEl);
+      item.appendChild(metaEl);
       item.addEventListener("click", () => openPage(name));
       dom.pageList.appendChild(item);
       (map[name] || []).forEach((child) => append(child, depth + 1));
@@ -252,7 +347,7 @@
         if (ad !== bd) return bd - ad;
         if ((a.root || a.name) !== (b.root || b.name)) return (a.root || a.name).localeCompare(b.root || b.name, "zh-CN");
         if (a.depth !== b.depth) return a.depth - b.depth;
-        return (a.order || 0) - (b.order || 0);
+        return ((a.sortKey ?? a.order) || 0) - ((b.sortKey ?? b.order) || 0);
       })
       .forEach((item) => {
         const root = item.root || item.name;
@@ -262,7 +357,13 @@
         div.dataset.trashName = item.name;
         div.dataset.trashRoot = root;
         const when = item.deletedAt ? new Date(item.deletedAt).toLocaleString() : "";
-        div.innerHTML = `<span>${item.name}</span><span class="meta-text">${item.depth === 0 ? "根" : `层级${item.depth}`} · ${when}</span>`;
+        const nameEl = document.createElement("span");
+        nameEl.textContent = item.name;
+        const metaEl = document.createElement("span");
+        metaEl.className = "meta-text";
+        metaEl.textContent = `${item.depth === 0 ? "根" : `层级${item.depth}`} · ${when}`;
+        div.appendChild(nameEl);
+        div.appendChild(metaEl);
         dom.trashList.appendChild(div);
       });
   }
@@ -272,7 +373,8 @@
     if (!clean) return setStatus("页面名不能为空"), false;
     if (state.pages[clean]) return setStatus(`页面“${clean}”已存在`), false;
     const safeParent = parent && state.pages[parent] ? parent : null;
-    state.pages[clean] = { title: clean, content, parent: safeParent, order: nextOrderForParent(safeParent) };
+    const sortKey = nextSortKeyForParent(safeParent);
+    state.pages[clean] = { title: clean, content: sanitizeHtml(content), parent: safeParent, sortKey, order: sortKey };
     persistPages();
     renderPageList();
     setStatus(`已创建页面：${clean}`);
@@ -288,7 +390,7 @@
 
   function createAutoPage(parent = null, prefix = "页面") {
     const name = buildAutoPageName(prefix);
-    const ok = createPage(name, `<h1>${name}</h1><p><br></p>`, parent);
+    const ok = createPage(name, `<h1>${escapeHtml(name)}</h1><p><br></p>`, parent);
     return ok ? name : "";
   }
 
@@ -299,13 +401,13 @@
       saveCurrentPage(true);
     }
     if (!state.pages[clean]) {
-      const created = createPage(clean, `<h1>${clean}</h1><p>这是新页面，开始编辑吧。</p>`, state.currentPage || null);
+      const created = createPage(clean, `<h1>${escapeHtml(clean)}</h1><p>这是新页面，开始编辑吧。</p>`, state.currentPage || null);
       if (!created) return;
     }
     state.currentPage = clean;
     state.selectedPage = clean;
     const page = state.pages[clean];
-    dom.editor.innerHTML = page.content || "<p></p>";
+    dom.editor.innerHTML = sanitizeHtml(page.content || "<p></p>");
     renderPageList();
     onContentChanged();
     if (anchor) scrollPreviewToAnchor(anchor);
@@ -325,18 +427,22 @@
     }
 
     state.trashPreviewName = clean;
-    dom.editor.innerHTML = state.trash[clean].content || "<p></p>";
-    setStatus(`回收站预览：${clean}`);
+    dom.editor.innerHTML = sanitizeHtml(state.trash[clean].content || "<p></p>");
+    setStatus(`回收站路径：${buildTrashPath(clean)}`);
     return true;
   }
 
   function saveCurrentPage(silent = false) {
+    if (state.trashPreviewName) {
+      if (!silent) setStatus("回收站预览不可保存");
+      return false;
+    }
     if (!state.currentPage || !state.pages[state.currentPage]) {
       if (!silent) setStatus("请先创建或打开页面");
       return false;
     }
     const oldName = state.currentPage;
-    const html = dom.editor.innerHTML;
+    const html = sanitizeHtml(dom.editor.innerHTML);
     state.pages[oldName] = { ...state.pages[oldName], content: html };
     persistPages();
     renderPageList();
@@ -359,7 +465,9 @@
     if (cleanParent && !state.pages[cleanParent]) return setStatus("目标父级不存在"), false;
     if (cleanParent && isDescendant(cleanParent, cleanName)) return setStatus("不能移动到自己的子孙页面"), false;
     state.pages[cleanName].parent = cleanParent;
-    state.pages[cleanName].order = nextOrderForParent(cleanParent);
+    const sortKey = nextSortKeyForParent(cleanParent);
+    state.pages[cleanName].sortKey = sortKey;
+    state.pages[cleanName].order = sortKey;
     normalizeAllSiblingOrders(state.pages);
     persistPages();
     renderPageList();
@@ -381,8 +489,8 @@
     const siblings = Object.keys(state.pages)
       .filter((n) => (state.pages[n].parent || null) === targetParent && n !== cleanName)
       .sort((a, b) => {
-        const ao = Number(state.pages[a].order) || 0;
-        const bo = Number(state.pages[b].order) || 0;
+        const ao = Number(state.pages[a].sortKey ?? state.pages[a].order) || 0;
+        const bo = Number(state.pages[b].sortKey ?? state.pages[b].order) || 0;
         if (ao !== bo) return ao - bo;
         return a.localeCompare(b, "zh-CN");
       });
@@ -390,7 +498,10 @@
     const targetIdx = siblings.indexOf(cleanTarget);
     const insertIdx = position === "before" ? targetIdx : targetIdx + 1;
     siblings.splice(Math.max(0, insertIdx), 0, cleanName);
-    siblings.forEach((n, idx) => { state.pages[n].order = idx; });
+    siblings.forEach((n, idx) => {
+      state.pages[n].sortKey = idx;
+      state.pages[n].order = idx;
+    });
     normalizeAllSiblingOrders(state.pages);
     persistPages();
     renderPageList();
@@ -449,7 +560,7 @@
     const nodes = Object.keys(state.trash)
       .filter((n) => (state.trash[n].root || n) === root)
       .map((n) => ({ oldName: n, ...state.trash[n] }))
-      .sort((a, b) => a.depth - b.depth || a.order - b.order);
+      .sort((a, b) => a.depth - b.depth || ((a.sortKey ?? a.order) - (b.sortKey ?? b.order)));
     if (!nodes.length) return false;
 
     const used = new Set();
@@ -464,11 +575,13 @@
       const newName = nameMap[node.oldName];
       const parent = node.parent;
       const restoredParent = parent && nameMap[parent] ? nameMap[parent] : (parent && state.pages[parent] ? parent : null);
+      const restoredSortKey = nextSortKeyForParent(restoredParent);
       state.pages[newName] = {
         title: newName,
         content: node.content || "<p></p>",
         parent: restoredParent,
-        order: nextOrderForParent(restoredParent)
+        sortKey: restoredSortKey,
+        order: restoredSortKey
       };
     });
 
@@ -507,7 +620,12 @@
         title: page.title || pageName,
         content: page.content || "<p></p>",
         parent: page.parent || null,
-        order: Number.isFinite(Number(page.order)) ? Number(page.order) : 0,
+        sortKey: Number.isFinite(Number(page.sortKey))
+          ? Number(page.sortKey)
+          : (Number.isFinite(Number(page.order)) ? Number(page.order) : 0),
+        order: Number.isFinite(Number(page.sortKey))
+          ? Number(page.sortKey)
+          : (Number.isFinite(Number(page.order)) ? Number(page.order) : 0),
         root: clean,
         depth,
         deletedAt: new Date().toISOString()
@@ -527,6 +645,122 @@
     else renderPreview();
 
     setStatus(`已移入回收站：${clean}`);
+    return true;
+  }
+
+  function deletePageKeepChildrenByName(name) {
+    const clean = sanitizeName(name);
+    if (!clean || !state.pages[clean]) return false;
+
+    const current = state.pages[clean];
+    const parent = current.parent || null;
+    const directChildren = Object.keys(state.pages)
+      .filter((n) => state.pages[n].parent === clean)
+      .sort((a, b) => {
+        const ao = Number(state.pages[a].sortKey ?? state.pages[a].order) || 0;
+        const bo = Number(state.pages[b].sortKey ?? state.pages[b].order) || 0;
+        if (ao !== bo) return ao - bo;
+        return a.localeCompare(b, "zh-CN");
+      });
+
+    directChildren.forEach((childName) => {
+      state.pages[childName].parent = parent;
+      const nextSortKey = nextSortKeyForParent(parent);
+      state.pages[childName].sortKey = nextSortKey;
+      state.pages[childName].order = nextSortKey;
+    });
+
+    state.trash[clean] = {
+      title: current.title || clean,
+      content: current.content || "<p></p>",
+      parent: current.parent || null,
+      sortKey: Number.isFinite(Number(current.sortKey))
+        ? Number(current.sortKey)
+        : (Number.isFinite(Number(current.order)) ? Number(current.order) : 0),
+      order: Number.isFinite(Number(current.sortKey))
+        ? Number(current.sortKey)
+        : (Number.isFinite(Number(current.order)) ? Number(current.order) : 0),
+      root: clean,
+      depth: 0,
+      deletedAt: new Date().toISOString()
+    };
+
+    delete state.pages[clean];
+    if (state.selectedPage === clean) state.selectedPage = "";
+
+    normalizeAllSiblingOrders(state.pages);
+    persistPages();
+    persistTrash();
+    renderPageList();
+    renderTrashList();
+
+    if (!Object.keys(state.pages).length) createPage("首页", "<h1>首页</h1><p>新 Wiki 已创建。</p>", null);
+    if (state.currentPage === clean) {
+      const openCandidate = directChildren.find((n) => state.pages[n])
+        || (parent && state.pages[parent] ? parent : Object.keys(state.pages)[0]);
+      if (openCandidate) openPage(openCandidate);
+    } else {
+      renderPreview();
+    }
+
+    setStatus(`已删除页面并提升子页面：${clean}`);
+    return true;
+  }
+
+  function getSiblingNames(parent) {
+    const parentKey = parent || null;
+    return Object.keys(state.pages)
+      .filter((n) => (state.pages[n].parent || null) === parentKey)
+      .sort((a, b) => {
+        const ao = Number(state.pages[a].sortKey ?? state.pages[a].order) || 0;
+        const bo = Number(state.pages[b].sortKey ?? state.pages[b].order) || 0;
+        if (ao !== bo) return ao - bo;
+        return a.localeCompare(b, "zh-CN");
+      });
+  }
+
+  function movePageSort(name, direction = "up") {
+    const clean = sanitizeName(name);
+    if (!clean || !state.pages[clean]) return false;
+    if (direction !== "up" && direction !== "down") return false;
+
+    const parent = state.pages[clean].parent || null;
+    const siblings = getSiblingNames(parent);
+    const idx = siblings.indexOf(clean);
+    if (idx === -1) return false;
+    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= siblings.length) {
+      setStatus(direction === "up" ? "已经在最上方" : "已经在最下方");
+      return false;
+    }
+
+    const targetName = siblings[targetIdx];
+    const currentSort = Number(state.pages[clean].sortKey ?? state.pages[clean].order) || 0;
+    const targetSort = Number(state.pages[targetName].sortKey ?? state.pages[targetName].order) || 0;
+    state.pages[clean].sortKey = targetSort;
+    state.pages[clean].order = targetSort;
+    state.pages[targetName].sortKey = currentSort;
+    state.pages[targetName].order = currentSort;
+
+    persistPages();
+    renderPageList();
+    setStatus(`已${direction === "up" ? "上移" : "下移"}：${clean}`);
+    return true;
+  }
+
+  function setPageSortKey(name, rawValue) {
+    const clean = sanitizeName(name);
+    if (!clean || !state.pages[clean]) return false;
+    const value = Number(rawValue);
+    if (!Number.isFinite(value)) {
+      setStatus("排序值必须是数字");
+      return false;
+    }
+    state.pages[clean].sortKey = value;
+    state.pages[clean].order = value;
+    persistPages();
+    renderPageList();
+    setStatus(`已设置排序值：${clean} -> ${value}`);
     return true;
   }
 
@@ -607,8 +841,11 @@
     saveCurrentPage,
     movePage,
     reorderPage,
+    movePageSort,
+    setPageSortKey,
     renamePage,
     deletePageByName,
+    deletePageKeepChildrenByName,
     deleteCurrentPage,
     restoreTrashRoot,
     purgeTrashRoot,
