@@ -12,20 +12,29 @@ import { createEditorBindings } from "./modules/app/editorBindings.js";
 import { createWikiBindings } from "./modules/app/wikiBindings.js";
 import { createSearch } from "./modules/search.js";
 import { createSearchBindings } from "./modules/app/searchBindings.js";
+import { applyI18n, t } from "./modules/i18n.js";
+import { createI18nBindings } from "./modules/app/i18nBindings.js";
 
 let wiki;
 let editor;
+let searchBindings;
+let i18nBindings;
 
 function createQueueAutoSave() {
   return function queueAutoSave() {
     if (state.autoSaveTimer) clearTimeout(state.autoSaveTimer);
     state.autoSaveTimer = setTimeout(() => {
-      if (wiki) wiki.saveCurrentPage(true);
+      if (!wiki) return;
+      const saved = wiki.saveCurrentPage(true);
+      if (saved && searchBindings && typeof searchBindings.refreshActiveQuery === "function") {
+        searchBindings.refreshActiveQuery();
+      }
     }, AUTO_SAVE_DELAY_MS);
   };
 }
 
 async function init() {
+  applyI18n(document);
   const setStatus = (text) => setStatusText(dom, text);
   const queueAutoSave = createQueueAutoSave();
   const onContentChanged = () => {
@@ -89,21 +98,36 @@ async function init() {
     editor,
     setStatus
   });
-  const searchBindings = createSearchBindings({
+  searchBindings = createSearchBindings({
     dom,
     search,
     setStatus
+  });
+  i18nBindings = createI18nBindings({
+    dom,
+    modes,
+    wiki,
+    editor,
+    searchBindings
   });
 
   state.pages = wiki.normalizePages(await loadPages(STORAGE_KEY));
   state.trash = wiki.normalizeTrash(await loadJson(STORAGE_TRASH_KEY, {}));
   if (!Object.keys(state.pages).length) {
-    state.pages = wiki.normalizePages({ "首页": { title: "首页", content: "<h1>首页</h1><p>欢迎使用 Wiki。</p>", parent: null } });
+    const homePage = t("page.home");
+    state.pages = wiki.normalizePages({
+      [homePage]: {
+        title: homePage,
+        content: t("content.homeWelcome"),
+        parent: null
+      }
+    });
   }
 
   editorBindings.bindAll();
   wikiBindings.bindAll();
   searchBindings.bindAll();
+  i18nBindings.bindAll();
 
   panels.bindGlobalDismiss(["#contextMenu", "#tableToolBar"]);
 
@@ -123,10 +147,11 @@ async function init() {
   modes.applyTreeMode();
   wiki.openPage(Object.keys(state.pages)[0]);
   modes.applyMode();
-  setStatus("已加载");
+  i18nBindings.refreshRuntimeLocalizedUi();
+  setStatus(t("status.loaded"));
 }
 
 init().catch((err) => {
   console.error(err);
-  setStatusText(dom, "初始化失败，请刷新页面重试");
+  setStatusText(dom, t("status.initFailed"));
 });

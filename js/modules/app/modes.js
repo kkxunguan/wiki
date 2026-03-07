@@ -1,4 +1,6 @@
-﻿export function createModes({ dom, editor }) {
+﻿import { t } from "../i18n.js";
+
+export function createModes({ dom, editor }) {
   const MODE_STORAGE_KEY = "wiki-mode-v1";
   const MODE_READ = "read";
   const MODE_EDIT = "edit";
@@ -33,7 +35,7 @@
   function applyMode() {
     document.body.classList.toggle("read-mode", isReadMode);
     editor.setReadOnly(isReadMode);
-    dom.modeToggleBtn.textContent = isReadMode ? "编辑" : "阅读";
+    dom.modeToggleBtn.textContent = isReadMode ? t("mode.edit") : t("mode.read");
     if (isReadMode) {
       dom.contextMenu.style.display = "none";
       dom.tableToolBar.style.display = "none";

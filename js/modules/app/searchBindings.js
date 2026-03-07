@@ -1,3 +1,5 @@
+﻿import { t } from "../i18n.js";
+
 function escapeHtml(text) {
   return String(text || "")
     .replace(/&/g, "&amp;")
@@ -34,10 +36,10 @@ export function createSearchBindings({ dom, search, setStatus }) {
 
     latestResults = search.searchPages(query);
     setSearchVisibility(true);
-    dom.globalSearchResultMeta.textContent = `Query "${query}" | ${latestResults.length} result(s)`;
+    dom.globalSearchResultMeta.textContent = t("search.meta", { query, count: latestResults.length });
 
     if (!latestResults.length) {
-      renderEmptyState("No matches found");
+      renderEmptyState(t("search.empty"));
       return;
     }
 
@@ -48,7 +50,7 @@ export function createSearchBindings({ dom, search, setStatus }) {
       resultBtn.className = "search-result-item";
       resultBtn.dataset.searchIndex = String(index);
       resultBtn.innerHTML = `
-        <div class="search-result-title">${escapeHtml(item.pageName)}<span class="search-result-count">Match #${item.occurrence + 1}</span></div>
+        <div class="search-result-title">${escapeHtml(item.pageName)}<span class="search-result-count">${escapeHtml(t("search.resultMatch", { index: item.occurrence + 1 }))}</span></div>
         <div class="search-result-snippet">${item.snippetHtml}</div>
       `;
       dom.globalSearchResults.appendChild(resultBtn);
@@ -84,7 +86,7 @@ export function createSearchBindings({ dom, search, setStatus }) {
       dom.globalSearchInput.value = "";
       renderResults("");
       dom.globalSearchInput.focus();
-      setStatus("Search cleared");
+      setStatus(t("status.searchCleared"));
     });
   }
 

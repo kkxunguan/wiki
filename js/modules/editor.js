@@ -1,4 +1,6 @@
-﻿export function createEditor({ dom, state, onContentChanged, queueAutoSave, setStatus }) {
+﻿import { t } from "./i18n.js";
+
+export function createEditor({ dom, state, onContentChanged, queueAutoSave, setStatus }) {
   const SHARED_DB_NAME = "wiki-richtext-db";
   const HISTORY_DB_VERSION = 1;
   const HISTORY_STORE_NAME = "kv";
@@ -258,7 +260,7 @@
 
   function updateCounter() {
     const text = dom.editor.innerText.replace(/\s+/g, "");
-    dom.counter.textContent = `${text.length} 字`;
+    dom.counter.textContent = t("counter.words", { count: text.length });
   }
 
   function exec(cmd, value = null) {
@@ -275,18 +277,18 @@
     const pageKey = getHistoryPageKey();
     const track = ensureHistoryTrack(pageKey);
     if (!track || track.index <= 0) {
-      setStatus("没有可撤销的操作");
+      setStatus(t("error.noUndo"));
       return;
     }
     const nextIndex = track.index - 1;
     if (!applyHistorySnapshot(track, nextIndex)) {
-      setStatus("撤销失败");
+      setStatus(t("error.undoFailed"));
       return;
     }
     track.index = nextIndex;
     queuePersistHistory();
     queueAutoSave();
-    setStatus("已撤销");
+    setStatus(t("status.undo"));
   }
 
   function redoEditor() {
@@ -294,18 +296,18 @@
     const pageKey = getHistoryPageKey();
     const track = ensureHistoryTrack(pageKey);
     if (!track || track.index >= track.entries.length - 1) {
-      setStatus("没有可前进的操作");
+      setStatus(t("error.noRedo"));
       return;
     }
     const nextIndex = track.index + 1;
     if (!applyHistorySnapshot(track, nextIndex)) {
-      setStatus("前进失败");
+      setStatus(t("error.redoFailed"));
       return;
     }
     track.index = nextIndex;
     queuePersistHistory();
     queueAutoSave();
-    setStatus("已前进");
+    setStatus(t("status.redo"));
   }
 
   function insertImageAtCursor(src, alt = "image") {
@@ -322,16 +324,16 @@
     if (readOnly) return;
     const size = Number(rawSize);
     if (!Number.isFinite(size) || size <= 0) {
-      setStatus("请输入有效字号（px）");
+      setStatus(t("error.invalidFontSize"));
       return;
     }
 
     dom.editor.focus();
     restoreSavedSelection();
     const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return setStatus("请先选中文本");
+    if (!sel || sel.rangeCount === 0) return setStatus(t("error.selectText"));
     const range = sel.getRangeAt(0);
-    if (!dom.editor.contains(range.commonAncestorContainer) || range.collapsed) return setStatus("请先在编辑区选中文本");
+    if (!dom.editor.contains(range.commonAncestorContainer) || range.collapsed) return setStatus(t("error.selectTextInEditor"));
 
     const fragment = range.extractContents();
     const span = document.createElement("span");
@@ -346,64 +348,32 @@
     saveSelectionIfInsideEditor();
     onContentChanged();
     queueAutoSave();
-    setStatus(`已设置字号：${Math.round(size)}px`);
+    setStatus(t("status.fontSizeSet", { size: Math.round(size) }));
   }
 
   function clearFormattingToPlainText() {
     if (readOnly) return;
-    const blockTags = new Set(["P", "DIV", "LI", "UL", "OL", "H1", "H2", "H3", "H4", "H5", "H6", "BLOCKQUOTE", "PRE"]);
-    const fragment = document.createDocumentFragment();
-    let paragraph = document.createElement("p");
-    let hasText = false;
-
-    function appendText(text) {
-      const value = (text || "").replace(/\s+/g, " ");
-      if (!value.trim()) return;
-      paragraph.appendChild(document.createTextNode(value));
-      hasText = true;
+    dom.editor.focus();
+    restoreSavedSelection();
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) {
+      setStatus(t("error.selectText"));
+      return;
     }
-
-    function flush() {
-      if (!hasText) return;
-      fragment.appendChild(paragraph);
-      paragraph = document.createElement("p");
-      hasText = false;
+    const range = sel.getRangeAt(0);
+    if (!dom.editor.contains(range.commonAncestorContainer) || range.collapsed) {
+      setStatus(t("error.selectTextInEditor"));
+      return;
     }
-
-    function appendImage(imgNode) {
-      flush();
-      const img = document.createElement("img");
-      img.src = imgNode.getAttribute("src") || "";
-      const alt = imgNode.getAttribute("alt");
-      if (alt) img.alt = alt;
-      if (img.src) fragment.appendChild(img);
-    }
-
-    function walk(node) {
-      if (node.nodeType === Node.TEXT_NODE) return appendText(node.textContent);
-      if (node.nodeType !== Node.ELEMENT_NODE) return;
-      const tag = node.tagName.toUpperCase();
-      if (tag === "IMG") return appendImage(node);
-      if (tag === "BR") return flush();
-      const isBlock = blockTags.has(tag);
-      if (isBlock) flush();
-      node.childNodes.forEach(walk);
-      if (isBlock) flush();
-    }
-
-    dom.editor.childNodes.forEach(walk);
-    flush();
-
-    if (!fragment.childNodes.length) dom.editor.innerHTML = "<p></p>";
-    else {
-      dom.editor.innerHTML = "";
-      dom.editor.appendChild(fragment);
-    }
-
+    document.execCommand("styleWithCSS", false, true);
+    // Only clear formatting inside current selection so unselected span styles stay untouched.
+    document.execCommand("removeFormat", false, null);
+    document.execCommand("foreColor", false, "#000000");
+    document.execCommand("hiliteColor", false, "transparent");
     saveSelectionIfInsideEditor();
     onContentChanged();
     queueAutoSave();
-    setStatus("已转换为普通正文文本");
+    setStatus(t("status.clearToBodyStyle"));
   }
 
   function clearBackgroundColor() {
@@ -414,7 +384,7 @@
     saveSelectionIfInsideEditor();
     onContentChanged();
     queueAutoSave();
-    setStatus("已清除底色");
+    setStatus(t("status.clearBg"));
   }
 
   function collectSelectedBlocks() {
@@ -499,14 +469,14 @@
     onContentChanged();
     queueAutoSave();
 
-    const labelMap = { P: "正文", H1: "标题1", H2: "标题2", H3: "标题3" };
-    setStatus(`已应用${labelMap[formatTag] || formatTag}预设样式`);
+    const labelMap = { P: t("label.format.P"), H1: t("label.format.H1"), H2: t("label.format.H2"), H3: t("label.format.H3") };
+    setStatus(t("status.presetApplied", { label: labelMap[formatTag] || formatTag }));
   }
 
   async function pasteImageFromClipboard() {
     if (readOnly) return;
     if (!navigator.clipboard || !navigator.clipboard.read) {
-      setStatus("当前浏览器不支持 clipboard.read，请使用 Ctrl+V 粘贴图片。");
+      setStatus(t("error.clipboardReadUnsupported"));
       return;
     }
     try {
@@ -518,14 +488,14 @@
         const reader = new FileReader();
         reader.onload = () => {
           insertImageAtCursor(String(reader.result || ""), "clipboard-image");
-          setStatus("已从剪贴板插入图片");
+          setStatus(t("status.imageInsertedFromClipboard"));
         };
         reader.readAsDataURL(blob);
         return;
       }
-      setStatus("剪贴板中没有图片");
+      setStatus(t("error.clipboardNoImage"));
     } catch {
-      setStatus("读取剪贴板失败，请允许剪贴板权限，或改用 Ctrl+V");
+      setStatus(t("error.clipboardReadFailed"));
     }
   }
 
@@ -600,12 +570,12 @@
       const reader = new FileReader();
       reader.onload = () => {
         insertImageAtCursor(String(reader.result || ""), file.name || "pasted-image");
-        setStatus("已通过 Ctrl+V 插入图片");
+        setStatus(t("status.imageInsertedByCtrlV"));
       };
       reader.readAsDataURL(file);
       return;
     }
-    // 文本粘贴保留原网页格式，交给浏览器默认行为处理。
+    // Keep rich-text formatting for pasted text by using browser default behavior.
   }
 
   function isEditorContext() {
@@ -744,7 +714,7 @@
       e.preventDefault();
       insertPlainTextAtCursor(text);
       queueAutoSave();
-      setStatus("已插入纯文本");
+      setStatus(t("status.insertedPlainText"));
     });
   }
 
@@ -852,20 +822,20 @@
     syncImageSizeInputs(selectedImage);
     onContentChanged();
     queueAutoSave();
-    setStatus("图片已恢复默认大小");
+    setStatus(t("status.imageResetDefault"));
   }
 
   function applyImageCustomSize() {
     if (readOnly || !selectedImage || !dom.editor.contains(selectedImage)) return;
     const ratio = selectedImageAspectRatio || getCurrentImageAspectRatio(selectedImage);
     if (!ratio) {
-      setStatus("无法获取图片比例，请重新选择图片");
+      setStatus(t("error.imageRatioUnavailable"));
       return;
     }
     const widthInput = parsePositiveNumber(dom.imageWidthInput.value);
     const heightInput = parsePositiveNumber(dom.imageHeightInput.value);
     if (!widthInput && !heightInput) {
-      setStatus("请输入有效的图片宽度或高度(px)");
+      setStatus(t("error.invalidImageSize"));
       return;
     }
 
@@ -876,7 +846,7 @@
     syncImageSizeInputs(selectedImage);
     onContentChanged();
     queueAutoSave();
-    setStatus("图片尺寸已按等比例更新");
+    setStatus(t("status.imageResizedProportional"));
   }
 
   function bindImageTooling() {
@@ -989,3 +959,4 @@
     bindImageTooling
   };
 }
+

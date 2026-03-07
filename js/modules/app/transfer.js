@@ -1,3 +1,5 @@
+﻿import { t } from "../i18n.js";
+
 export function createTransfer({
   state,
   wiki,
@@ -31,7 +33,7 @@ export function createTransfer({
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    setStatus("已导出 JSON 备份");
+    setStatus(t("status.exportedJson"));
   }
 
   function normalizeImportedPagesPayload(parsed) {
@@ -51,7 +53,7 @@ export function createTransfer({
     try {
       parsed = JSON.parse(rawText);
     } catch {
-      setStatus("导入失败：JSON 格式无效");
+      setStatus(t("error.importInvalidJson"));
       return;
     }
 
@@ -60,7 +62,7 @@ export function createTransfer({
     const hasPages = incomingPages && typeof incomingPages === "object";
     const hasTrash = incomingTrash && typeof incomingTrash === "object";
     if (!hasPages && !hasTrash) {
-      setStatus("导入失败：未找到 pages / trash 数据");
+      setStatus(t("error.importMissingData"));
       return;
     }
 
@@ -82,6 +84,7 @@ export function createTransfer({
           nextPages[key] = incomingPages[name];
         });
       }
+
       const nextTrash = {};
       if (hasTrash) {
         Object.keys(incomingTrash).forEach((name) => {
@@ -91,6 +94,7 @@ export function createTransfer({
           nextTrash[key] = incomingTrash[name];
         });
       }
+
       state.pages = wiki.normalizePages(nextPages);
       state.trash = wiki.normalizeTrash(nextTrash);
     } else {
@@ -134,7 +138,7 @@ export function createTransfer({
     wiki.renderTrashList();
 
     if (!importedCount && !importedTrashCount) {
-      setStatus("导入失败：没有可用数据");
+      setStatus(t("error.importNoUsableData"));
       return;
     }
 
@@ -143,9 +147,16 @@ export function createTransfer({
       : (parsed.currentPage && state.pages[parsed.currentPage] ? parsed.currentPage : Object.keys(state.pages)[0]);
     if (openTarget) wiki.openPage(openTarget);
 
-    const dedupeSuffix = dedupedTrashCount ? `，去重 ${dedupedTrashCount}` : "";
-    const modeText = mode === "replace" ? "覆盖" : "合并";
-    setStatus(`导入完成（${modeText}）：页面 ${importedCount}（覆盖 ${overwrittenCount}），回收站 ${importedTrashCount}（覆盖 ${overwrittenTrashCount}${dedupeSuffix}）`);
+    const dedupe = dedupedTrashCount ? t("status.importDedupe", { count: dedupedTrashCount }) : "";
+    const modeText = t(mode === "replace" ? "status.importMode.replace" : "status.importMode.merge");
+    setStatus(t("status.importComplete", {
+      mode: modeText,
+      pages: importedCount,
+      pagesOver: overwrittenCount,
+      trash: importedTrashCount,
+      trashOver: overwrittenTrashCount,
+      dedupe
+    }));
   }
 
   return { exportAllToJson, importFromJsonText };

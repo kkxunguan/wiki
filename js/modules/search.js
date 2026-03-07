@@ -1,9 +1,11 @@
+﻿import { t } from "./i18n.js";
+
 function escapeHtml(text) {
   return String(text || "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
+    .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
 
@@ -114,7 +116,7 @@ export function createSearch({ state, wiki, editor, setStatus }) {
     const query = normalizeSearchText(result && result.query);
     if (!pageName || !query) return false;
     if (!state.pages[pageName]) {
-      setStatus(`Page not found: ${pageName}`);
+      setStatus(t("error.searchPageMissing", { page: pageName }));
       return false;
     }
     const occurrence = Math.max(0, Number(result.occurrence) || 0);
@@ -125,10 +127,10 @@ export function createSearch({ state, wiki, editor, setStatus }) {
       const jumped = editor.jumpToTextOccurrence(query, occurrence)
         || editor.jumpToTextOccurrence(query, 0);
       if (jumped) {
-        setStatus(`Jumped to: ${pageName}`);
+        setStatus(t("status.searchJumped", { page: pageName }));
         return;
       }
-      setStatus(`Opened page: ${pageName} (keyword not located)`);
+      setStatus(t("status.searchOpenedNoHit", { page: pageName }));
     });
 
     return true;

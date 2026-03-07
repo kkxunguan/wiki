@@ -1,4 +1,6 @@
-﻿export function createWiki({ dom, state, savePages, saveTrash, onContentChanged, queueAutoSave, setStatus }) {
+﻿import { t } from "./i18n.js";
+
+export function createWiki({ dom, state, savePages, saveTrash, onContentChanged, queueAutoSave, setStatus }) {
   function showMenuInViewport(menuEl, clientX, clientY) {
     if (!menuEl) return;
     const margin = 8;
@@ -263,7 +265,7 @@
   }
 
   function formatSaveTime(date = new Date()) {
-    return date.toLocaleTimeString("zh-CN", { hour12: false });
+    return date.toLocaleTimeString(t("locale.tag"), { hour12: false });
   }
 
   function captureEditorSelectionSnapshot() {
@@ -351,7 +353,7 @@
       dom.toc.appendChild(li);
     });
     if (!dom.toc.children.length) {
-      dom.toc.innerHTML = '<li style="color:#8d9ab1;">暂无标题目录（使用 H1/H2/H3）</li>';
+      dom.toc.innerHTML = `<li style="color:#8d9ab1;">${escapeHtml(t("wiki.tocEmpty"))}</li>`;
     }
   }
 
@@ -376,7 +378,7 @@
       nameEl.textContent = name;
       const metaEl = document.createElement("span");
       metaEl.className = "meta-text";
-      metaEl.textContent = `${wc}字 · 排序${sortKey}`;
+      metaEl.textContent = t("wiki.pageMeta", { count: wc, sortKey });
       item.appendChild(nameEl);
       item.appendChild(metaEl);
       item.addEventListener("click", () => openPage(name));
@@ -391,7 +393,7 @@
     dom.trashList.innerHTML = "";
     const names = Object.keys(state.trash || {});
     if (!names.length) {
-      dom.trashList.innerHTML = '<div class="trash-item-meta">回收站为空</div>';
+      dom.trashList.innerHTML = `<div class="trash-item-meta">${escapeHtml(t("wiki.trashEmpty"))}</div>`;
       return;
     }
     names
@@ -416,7 +418,8 @@
         nameEl.textContent = item.name;
         const metaEl = document.createElement("span");
         metaEl.className = "meta-text";
-        metaEl.textContent = `${item.depth === 0 ? "根" : `层级${item.depth}`} · ${when}`;
+        const depthLabel = item.depth === 0 ? t("wiki.trashDepthRoot") : t("wiki.trashDepth", { depth: item.depth });
+        metaEl.textContent = `${depthLabel}${t("common.separator")}${when}`;
         div.appendChild(nameEl);
         div.appendChild(metaEl);
         dom.trashList.appendChild(div);
@@ -425,8 +428,8 @@
 
   function createPage(name, content = "<p></p>", parent = null) {
     const clean = sanitizeName(name);
-    if (!clean) return setStatus("页面名不能为空"), false;
-    if (state.pages[clean]) return setStatus(`页面“${clean}”已存在`), false;
+    if (!clean) return setStatus(t("error.pageNameRequired")), false;
+    if (state.pages[clean]) return setStatus(t("error.pageExists", { name: clean })), false;
     const safeParent = parent && state.pages[parent] ? parent : null;
     const sortKey = nextSortKeyForParent(safeParent);
     state.pages[clean] = {
@@ -439,18 +442,18 @@
     };
     persistPages();
     renderPageList();
-    setStatus(`已创建页面：${clean}`);
+    setStatus(t("status.pageCreated", { name: clean }));
     return true;
   }
 
-  function buildAutoPageName(prefix = "页面") {
-    const base = sanitizeName(prefix) || "页面";
+  function buildAutoPageName(prefix = t("page.defaultPrefix")) {
+    const base = sanitizeName(prefix) || t("page.defaultPrefix");
     let index = 1;
     while (state.pages[`${base}${index}`]) index += 1;
     return `${base}${index}`;
   }
 
-  function createAutoPage(parent = null, prefix = "页面") {
+  function createAutoPage(parent = null, prefix = t("page.defaultPrefix")) {
     const name = buildAutoPageName(prefix);
     const ok = createPage(name, `<h1>${escapeHtml(name)}</h1><p><br></p>`, parent);
     return ok ? name : "";
@@ -463,7 +466,7 @@
       saveCurrentPage(true);
     }
     if (!state.pages[clean]) {
-      const created = createPage(clean, `<h1>${escapeHtml(clean)}</h1><p>这是新页面，开始编辑吧。</p>`, state.currentPage || null);
+      const created = createPage(clean, t("content.newPage", { title: escapeHtml(clean) }), state.currentPage || null);
       if (!created) return;
     }
     state.currentPage = clean;
@@ -474,7 +477,7 @@
     renderPageList();
     onContentChanged();
     if (anchor) scrollPreviewToAnchor(anchor);
-    setStatus(anchor ? `当前页面：${buildPagePath(clean)} #${anchor}` : `当前页面：${buildPagePath(clean)}`);
+    setStatus(anchor ? t("status.currentPageWithAnchor", { path: buildPagePath(clean), anchor }) : t("status.currentPage", { path: buildPagePath(clean) }));
   }
 
   function previewTrashPage(name) {
@@ -492,17 +495,17 @@
     state.trashPreviewName = clean;
     dom.editor.innerHTML = sanitizeHtml(state.trash[clean].content || "<p></p>");
     applyEditorBackground(state.trash[clean].pageBackground);
-    setStatus(`回收站路径：${buildTrashPath(clean)}`);
+    setStatus(t("status.trashPath", { path: buildTrashPath(clean) }));
     return true;
   }
 
   function saveCurrentPage(silent = false) {
     if (state.trashPreviewName) {
-      if (!silent) setStatus("回收站预览不可保存");
+      if (!silent) setStatus(t("error.trashPreviewReadOnlySave"));
       return false;
     }
     if (!state.currentPage || !state.pages[state.currentPage]) {
-      if (!silent) setStatus("请先创建或打开页面");
+      if (!silent) setStatus(t("error.openOrCreateFirst"));
       return false;
     }
     const hadEditorFocus = document.activeElement === dom.editor;
@@ -517,8 +520,8 @@
     const timeText = formatSaveTime();
     setStatus(
       silent
-        ? `已自动保存：${path} · ${timeText}`
-        : `已保存页面：${path} · ${timeText}`
+        ? t("status.autoSaved", { path, time: timeText })
+        : t("status.saved", { path, time: timeText })
     );
     restoreEditorSelectionSnapshot(selectionSnapshot, hadEditorFocus);
     return true;
@@ -526,11 +529,11 @@
 
   function setCurrentPageBackground(rawColor, silent = false) {
     if (state.trashPreviewName) {
-      if (!silent) setStatus("回收站预览不可修改页面背景");
+      if (!silent) setStatus(t("error.trashPreviewNoPageBg"));
       return false;
     }
     if (!state.currentPage || !state.pages[state.currentPage]) {
-      if (!silent) setStatus("请先创建或打开页面");
+      if (!silent) setStatus(t("error.openOrCreateFirst"));
       return false;
     }
 
@@ -544,8 +547,8 @@
     persistPages();
 
     if (!silent) {
-      const label = color || "默认背景";
-      setStatus(`已设置页面背景：${label}`);
+      const label = color || t("status.pageBgDefault");
+      setStatus(t("status.pageBgSet", { label }));
     }
     return true;
   }
@@ -558,9 +561,9 @@
     const cleanName = sanitizeName(name);
     if (!cleanName || !state.pages[cleanName]) return false;
     const cleanParent = sanitizeName(targetParent) || null;
-    if (cleanParent === cleanName) return setStatus("父级不能是自己"), false;
-    if (cleanParent && !state.pages[cleanParent]) return setStatus("目标父级不存在"), false;
-    if (cleanParent && isDescendant(cleanParent, cleanName)) return setStatus("不能移动到自己的子孙页面"), false;
+    if (cleanParent === cleanName) return setStatus(t("error.parentCannotSelf")), false;
+    if (cleanParent && !state.pages[cleanParent]) return setStatus(t("error.targetParentMissing")), false;
+    if (cleanParent && isDescendant(cleanParent, cleanName)) return setStatus(t("error.moveToDescendant")), false;
     state.pages[cleanName].parent = cleanParent;
     const sortKey = nextSortKeyForParent(cleanParent);
     state.pages[cleanName].sortKey = sortKey;
@@ -568,7 +571,7 @@
     normalizeAllSiblingOrders(state.pages);
     persistPages();
     renderPageList();
-    setStatus(`已更新层级：${buildPagePath(cleanName)}`);
+    setStatus(t("status.hierarchyUpdated", { path: buildPagePath(cleanName) }));
     return true;
   }
 
@@ -580,7 +583,7 @@
     if (position !== "before" && position !== "after") return false;
 
     const targetParent = state.pages[cleanTarget].parent || null;
-    if (targetParent && isDescendant(targetParent, cleanName)) return setStatus("不能移动到自己的子孙页面"), false;
+    if (targetParent && isDescendant(targetParent, cleanName)) return setStatus(t("error.moveToDescendant")), false;
 
     state.pages[cleanName].parent = targetParent;
     const siblings = Object.keys(state.pages)
@@ -602,7 +605,7 @@
     normalizeAllSiblingOrders(state.pages);
     persistPages();
     renderPageList();
-    setStatus(`已排序：${cleanName} -> ${position === "before" ? "前置" : "后置"} ${cleanTarget}`);
+    setStatus(t("status.reordered", { name: cleanName, position: t(position === "before" ? "status.position.before" : "status.position.after"), target: cleanTarget }));
     return true;
   }
 
@@ -610,9 +613,9 @@
     const oldName = sanitizeName(name);
     const nextName = sanitizeName(newName);
     if (!oldName || !state.pages[oldName]) return false;
-    if (!nextName) return setStatus("页面名不能为空"), false;
+    if (!nextName) return setStatus(t("error.pageNameRequired")), false;
     if (oldName === nextName) return true;
-    if (state.pages[nextName]) return setStatus(`页面“${nextName}”已存在`), false;
+    if (state.pages[nextName]) return setStatus(t("error.pageExists", { name: nextName })), false;
 
     const oldData = state.pages[oldName];
     delete state.pages[oldName];
@@ -625,7 +628,7 @@
     normalizeAllSiblingOrders(state.pages);
     persistPages();
     renderPageList();
-    setStatus(`已重命名：${oldName} -> ${nextName}`);
+    setStatus(t("status.renamed", { oldName, newName: nextName }));
     return true;
   }
 
@@ -644,11 +647,12 @@
   }
 
   function uniqueRestoredName(baseName, used) {
-    let name = sanitizeName(baseName) || "未命名";
+    let name = sanitizeName(baseName) || t("page.unnamed");
     if (!used.has(name) && !state.pages[name]) return name;
     let idx = 1;
-    while (used.has(`${name}(恢复${idx > 1 ? idx : ""})`) || state.pages[`${name}(恢复${idx > 1 ? idx : ""})`]) idx += 1;
-    return `${name}(恢复${idx > 1 ? idx : ""})`;
+    const restoreSuffix = t("page.restoreSuffix");
+    while (used.has(`${name}(${restoreSuffix}${idx > 1 ? idx : ""})`) || state.pages[`${name}(${restoreSuffix}${idx > 1 ? idx : ""})`]) idx += 1;
+    return `${name}(${restoreSuffix}${idx > 1 ? idx : ""})`;
   }
 
   function restoreTrashRoot(rootName) {
@@ -690,7 +694,7 @@
     renderPageList();
     renderTrashList();
     openPage(nameMap[root] || Object.keys(nameMap)[0]);
-    setStatus(`已从回收站恢复：${nameMap[root] || root}`);
+    setStatus(t("status.restoredFromTrash", { name: nameMap[root] || root }));
     return true;
   }
 
@@ -703,7 +707,7 @@
     if (names.includes(state.trashPreviewName)) state.trashPreviewName = "";
     persistTrash();
     renderTrashList();
-    setStatus(`已从回收站彻底删除：${root}`);
+    setStatus(t("status.purgedFromTrash", { name: root }));
     return true;
   }
 
@@ -739,11 +743,11 @@
     renderPageList();
     renderTrashList();
 
-    if (!Object.keys(state.pages).length) createPage("首页", "<h1>首页</h1><p>新 Wiki 已创建。</p>", null);
+    if (!Object.keys(state.pages).length) createPage(t("page.home"), t("content.newWiki"), null);
     if (subtree.some((n) => n.name === state.currentPage)) openPage(Object.keys(state.pages)[0]);
     else renderPreview();
 
-    setStatus(`已移入回收站：${clean}`);
+    setStatus(t("status.movedToTrash", { name: clean }));
     return true;
   }
 
@@ -794,7 +798,7 @@
     renderPageList();
     renderTrashList();
 
-    if (!Object.keys(state.pages).length) createPage("首页", "<h1>首页</h1><p>新 Wiki 已创建。</p>", null);
+    if (!Object.keys(state.pages).length) createPage(t("page.home"), t("content.newWiki"), null);
     if (state.currentPage === clean) {
       const openCandidate = directChildren.find((n) => state.pages[n])
         || (parent && state.pages[parent] ? parent : Object.keys(state.pages)[0]);
@@ -803,7 +807,7 @@
       renderPreview();
     }
 
-    setStatus(`已删除页面并提升子页面：${clean}`);
+    setStatus(t("status.deletedPromoteChildren", { name: clean }));
     return true;
   }
 
@@ -830,7 +834,7 @@
     if (idx === -1) return false;
     const targetIdx = direction === "up" ? idx - 1 : idx + 1;
     if (targetIdx < 0 || targetIdx >= siblings.length) {
-      setStatus(direction === "up" ? "已经在最上方" : "已经在最下方");
+      setStatus(direction === "up" ? t("status.alreadyTop") : t("status.alreadyBottom"));
       return false;
     }
 
@@ -844,7 +848,7 @@
 
     persistPages();
     renderPageList();
-    setStatus(`已${direction === "up" ? "上移" : "下移"}：${clean}`);
+    setStatus(direction === "up" ? t("status.movedUp", { name: clean }) : t("status.movedDown", { name: clean }));
     return true;
   }
 
@@ -853,19 +857,19 @@
     if (!clean || !state.pages[clean]) return false;
     const value = Number(rawValue);
     if (!Number.isFinite(value)) {
-      setStatus("排序值必须是数字");
+      setStatus(t("error.sortMustBeNumber"));
       return false;
     }
     state.pages[clean].sortKey = value;
     state.pages[clean].order = value;
     persistPages();
     renderPageList();
-    setStatus(`已设置排序值：${clean} -> ${value}`);
+    setStatus(t("status.sortSet", { name: clean, value }));
     return true;
   }
 
   function deleteCurrentPage() {
-    if (!state.currentPage || !state.pages[state.currentPage]) return setStatus("没有可删除的页面");
+    if (!state.currentPage || !state.pages[state.currentPage]) return setStatus(t("error.noPageToDelete"));
     deletePageByName(state.currentPage);
   }
 
@@ -955,4 +959,5 @@
     bindPreviewLinks
   };
 }
+
 

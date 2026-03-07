@@ -1,4 +1,6 @@
-﻿const DB_NAME = "wiki-richtext-db";
+﻿import { t } from "./i18n.js";
+
+const DB_NAME = "wiki-richtext-db";
 const DB_VERSION = 1;
 const STORE_NAME = "kv";
 
@@ -42,9 +44,11 @@ async function idbSet(key, value) {
 }
 
 export function defaultPages() {
+  const home = t("page.home");
+  const usage = t("page.usage");
   return {
-    "首页": { title: "首页", content: "<h1>首页</h1><p>欢迎使用 Wiki。</p>", parent: null },
-    "使用说明": { title: "使用说明", content: "<h1>使用说明</h1><p>支持树形页面、内链和图片粘贴。</p>", parent: "首页" }
+    [home]: { title: home, content: t("content.homeWelcome"), parent: null },
+    [usage]: { title: usage, content: t("content.usage"), parent: home }
   };
 }
 
@@ -61,7 +65,9 @@ export async function loadJson(storageKey, fallbackValue) {
   } catch {
     const raw = localStorage.getItem(storageKey);
     if (raw) {
-      try { return JSON.parse(raw); } catch {}
+      try {
+        return JSON.parse(raw);
+      } catch {}
     }
   }
   return fallbackValue;
@@ -70,7 +76,9 @@ export async function loadJson(storageKey, fallbackValue) {
 export function saveJson(storageKey, value) {
   const raw = JSON.stringify(value);
   idbSet(storageKey, raw).catch(() => {
-    try { localStorage.setItem(storageKey, raw); } catch {}
+    try {
+      localStorage.setItem(storageKey, raw);
+    } catch {}
   });
 }
 

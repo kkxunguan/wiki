@@ -1,24 +1,39 @@
+﻿import { t } from "../i18n.js";
+
+function parsePathAndTime(content, prefix) {
+  if (!content.startsWith(prefix)) return null;
+  const body = content.slice(prefix.length).trim();
+  const separator = t("common.separator");
+  const index = body.lastIndexOf(separator);
+  if (index < 0) return null;
+  return {
+    path: body.slice(0, index).trim(),
+    time: body.slice(index + separator.length).trim()
+  };
+}
+
 export function setStatus(dom, text) {
   const content = String(text || "");
 
-  const currentPageMatch = content.match(/^当前页面：(.+)$/);
-  if (currentPageMatch) {
-    if (dom.pagePathEl) dom.pagePathEl.textContent = currentPageMatch[1].trim();
+  const currentPagePrefix = t("status.currentPagePrefix");
+  if (content.startsWith(currentPagePrefix)) {
+    if (dom.pagePathEl) dom.pagePathEl.textContent = content.slice(currentPagePrefix.length).trim();
     dom.statusEl.textContent = "";
     return;
   }
 
-  const saveMatch = content.match(/^已(?:自动)?保存：(.+?)\s*·\s*(\d{2}:\d{2}:\d{2})$/);
-  if (saveMatch) {
-    if (dom.pagePathEl) dom.pagePathEl.textContent = saveMatch[1].trim();
-    dom.statusEl.textContent = `已自动保存：${saveMatch[2]}`;
+  const autoSaved = parsePathAndTime(content, t("status.autoSavedPrefix"));
+  const saved = autoSaved || parsePathAndTime(content, t("status.savedPrefix"));
+  if (saved) {
+    if (dom.pagePathEl) dom.pagePathEl.textContent = saved.path;
+    dom.statusEl.textContent = t("status.autoSavedAt", { time: saved.time });
     return;
   }
 
-  const trashPathMatch = content.match(/^回收站路径：(.+)$/);
-  if (trashPathMatch) {
-    if (dom.pagePathEl) dom.pagePathEl.textContent = trashPathMatch[1].trim();
-    dom.statusEl.textContent = "回收站预览";
+  const trashPathPrefix = t("status.trashPathPrefix");
+  if (content.startsWith(trashPathPrefix)) {
+    if (dom.pagePathEl) dom.pagePathEl.textContent = content.slice(trashPathPrefix.length).trim();
+    dom.statusEl.textContent = t("status.trashPreview");
     return;
   }
 

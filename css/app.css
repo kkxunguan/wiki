@@ -276,6 +276,17 @@ button:hover, select:hover, .page-item:hover { border-color: var(--accent); }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.locale-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4.8px;
+  color: var(--muted);
+  font-size: 10.4px;
+}
+.locale-switch select {
+  min-width: 96px;
+  padding: 4.8px 6.4px;
+}
 .title-input { min-width: 96px; flex: 1; }
 
 .toolbar {
@@ -363,7 +374,7 @@ button:hover, select:hover, .page-item:hover { border-color: var(--accent); }
   border-radius: 0;
   margin: 10px 0 8px;
 }
-.editor:empty::before { content: "输入 [[页面名]] 可创建 Wiki 内链"; color: #8d9ab1; }
+.editor:empty::before { content: var(--editor-empty-tip, ""); color: #8d9ab1; }
 .editor img, .preview img { max-width: 100%; height: auto; border-radius: 4.8px; }
 .editor img.image-selected {
   outline: 2px solid #3b82f6;

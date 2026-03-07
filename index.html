@@ -3,33 +3,33 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Wiki 富文本</title>
+  <title data-i18n="html.title"></title>
   <link rel="stylesheet" href="./css/app.css" />
 </head>
 <body>
   <div class="app">
     <aside class="panel sidebar">
       <div class="sidebar-top">
-        <h2>Wiki 页面树</h2>
+        <h2 data-i18n="sidebar.treeTitle"></h2>
         <div class="row">
-          <button id="quickCreatePageBtn" class="btn-primary grow">+ 新建页面</button>
+          <button id="quickCreatePageBtn" class="btn-primary grow" data-i18n="sidebar.quickCreate"></button>
         </div>
         <div class="row">
-          <button id="importJsonBtn" class="grow">导入 JSON</button>
-          <button id="exportJsonBtn" class="grow">导出 JSON</button>
+          <button id="importJsonBtn" class="grow" data-i18n="sidebar.importJson"></button>
+          <button id="exportJsonBtn" class="grow" data-i18n="sidebar.exportJson"></button>
         </div>
-        <div class="section-title">操作提示</div>
-        <div class="sidebar-hint">右键可打开/重命名/删除/新建子页；拖拽页面到目标页面仅调整层级，顺序请用右键排序操作。</div>
+        <div class="section-title" data-i18n="sidebar.operationTips"></div>
+        <div class="sidebar-hint" data-i18n="sidebar.operationTipsHint"></div>
         <div class="tree-mode-bar">
-          <button id="showPagesBtn" class="mode-tab active" type="button">页面树</button>
-          <button id="showTrashBtn" class="mode-tab" type="button">回收站</button>
+          <button id="showPagesBtn" class="mode-tab active" type="button" data-i18n="tree.pages"></button>
+          <button id="showTrashBtn" class="mode-tab" type="button" data-i18n="tree.trash"></button>
         </div>
       </div>
       <div class="sidebar-search">
-        <div class="section-title">全局搜索</div>
+        <div class="section-title" data-i18n="search.title"></div>
         <div class="search-input-row">
-          <input id="globalSearchInput" type="text" placeholder="输入关键词搜索全部页面" />
-          <button id="clearSearchBtn" type="button">清空</button>
+          <input id="globalSearchInput" type="text" data-i18n-placeholder="search.placeholder" />
+          <button id="clearSearchBtn" type="button" data-i18n="search.clear"></button>
         </div>
         <div id="globalSearchResultMeta" class="search-meta hidden"></div>
       </div>
@@ -41,39 +41,46 @@
     <section class="panel main">
       <div class="mode-switch-bar">
         <span id="pagePath" class="page-path"></span>
-        <button id="modeToggleBtn" type="button">阅读</button>
+        <label class="locale-switch" for="localeSelect">
+          <span data-i18n="locale.label"></span>
+          <select id="localeSelect">
+            <option value="zh-CN" data-i18n="locale.zhCN"></option>
+            <option value="en-US" data-i18n="locale.enUS"></option>
+          </select>
+        </label>
+        <button id="modeToggleBtn" type="button" data-i18n="mode.read"></button>
       </div>
       <div class="toolbar">
-        <button id="undoBtn" class="icon-btn" title="撤销 Ctrl+Z"><span class="i">↶</span><span>撤销</span></button>
-        <button id="redoBtn" class="icon-btn" title="前进 Ctrl+Y / Ctrl+Shift+Z"><span class="i">↷</span><span>前进</span></button>
+        <button id="undoBtn" class="icon-btn" data-i18n-title="toolbar.undoTitle"><span class="i">↶</span><span data-i18n="toolbar.undo"></span></button>
+        <button id="redoBtn" class="icon-btn" data-i18n-title="toolbar.redoTitle"><span class="i">↷</span><span data-i18n="toolbar.redo"></span></button>
         <span class="tool-divider"></span>
         <select id="formatBlock">
-          <option value="P">正文</option>
-          <option value="H1">标题 1</option>
-          <option value="H2">标题 2</option>
-          <option value="H3">标题 3</option>
+          <option value="P" data-i18n="format.p"></option>
+          <option value="H1" data-i18n="format.h1"></option>
+          <option value="H2" data-i18n="format.h2"></option>
+          <option value="H3" data-i18n="format.h3"></option>
         </select>
         <span class="tool-divider"></span>
         <button data-cmd="bold"><b>B</b></button>
         <button data-cmd="italic"><i>I</i></button>
         <button data-cmd="underline"><u>U</u></button>
         <span class="tool-divider"></span>
-        <button id="fontSizeBtn" class="icon-btn"><span class="i">↕</span><span>字号</span></button>
-        <button id="colorBtn" class="icon-btn"><span class="i">🎨</span><span>颜色</span></button>
+        <button id="fontSizeBtn" class="icon-btn"><span class="i">↕</span><span data-i18n="toolbar.fontSize"></span></button>
+        <button id="colorBtn" class="icon-btn"><span class="i">🎨</span><span data-i18n="toolbar.color"></span></button>
         <span class="tool-divider"></span>
-        <button id="insertWikiLinkBtn" class="icon-btn"><span class="i">🧭</span><span>Wiki</span></button>
-        <button id="imageUrlBtn" class="icon-btn"><span class="i">🖼</span><span>图片</span></button>
-        <button id="insertTableBtn" class="icon-btn"><span class="i">▦</span><span>表格</span></button>
+        <button id="insertWikiLinkBtn" class="icon-btn"><span class="i">🧭</span><span data-i18n="toolbar.wiki"></span></button>
+        <button id="imageUrlBtn" class="icon-btn"><span class="i">🖼</span><span data-i18n="toolbar.image"></span></button>
+        <button id="insertTableBtn" class="icon-btn"><span class="i">▦</span><span data-i18n="toolbar.table"></span></button>
         <span class="tool-divider"></span>
-        <button id="clearFormatBtn" class="icon-btn"><span class="i">🧹</span><span>正文</span></button>
+        <button id="clearFormatBtn" class="icon-btn"><span class="i">🧹</span><span data-i18n="toolbar.body"></span></button>
       </div>
 
       <div class="workspace">
         <div id="editorWrap" class="editor-wrap">
           <div id="editor" class="editor" contenteditable="true"></div>
           <div class="meta">
-            <span id="counter">0 字</span>
-            <span>右键编辑区可粘贴剪贴板图片（也支持 Ctrl+V）</span>
+            <span id="counter" data-i18n="counter.initial"></span>
+            <span data-i18n="editor.pasteHint"></span>
             <span id="status" class="status inline-status"></span>
           </div>
         </div>
@@ -82,61 +89,61 @@
   </div>
 
   <div id="contextMenu" class="context-menu">
-    <button id="pasteImageBtn" type="button">粘贴剪贴板图片</button>
+    <button id="pasteImageBtn" type="button" data-i18n="context.pasteImage"></button>
   </div>
 
   <div id="pageItemMenu" class="context-menu">
-    <button id="pageMenuOpenBtn" type="button">打开页面</button>
-    <button id="pageMenuNewChildBtn" type="button">新建子页面</button>
-    <button id="pageMenuRenameBtn" type="button">重命名页面</button>
-    <button id="pageMenuSortUpBtn" type="button">上移</button>
-    <button id="pageMenuSortDownBtn" type="button">下移</button>
-    <button id="pageMenuSetSortBtn" type="button">设置排序值</button>
-    <button id="pageMenuMoveRootBtn" type="button">移动到顶级</button>
-    <button id="pageMenuDeleteBtn" type="button">全部删除</button>
-    <button id="pageMenuDeleteKeepChildrenBtn" type="button">只删本页</button>
+    <button id="pageMenuOpenBtn" type="button" data-i18n="menu.page.open"></button>
+    <button id="pageMenuNewChildBtn" type="button" data-i18n="menu.page.newChild"></button>
+    <button id="pageMenuRenameBtn" type="button" data-i18n="menu.page.rename"></button>
+    <button id="pageMenuSortUpBtn" type="button" data-i18n="menu.page.sortUp"></button>
+    <button id="pageMenuSortDownBtn" type="button" data-i18n="menu.page.sortDown"></button>
+    <button id="pageMenuSetSortBtn" type="button" data-i18n="menu.page.setSort"></button>
+    <button id="pageMenuMoveRootBtn" type="button" data-i18n="menu.page.moveRoot"></button>
+    <button id="pageMenuDeleteBtn" type="button" data-i18n="menu.page.delete"></button>
+    <button id="pageMenuDeleteKeepChildrenBtn" type="button" data-i18n="menu.page.deleteKeepChildren"></button>
   </div>
 
   <div id="trashItemMenu" class="context-menu">
-    <button id="trashMenuRestoreBtn" type="button">恢复</button>
-    <button id="trashMenuDeleteBtn" type="button">彻底删除</button>
+    <button id="trashMenuRestoreBtn" type="button" data-i18n="menu.trash.restore"></button>
+    <button id="trashMenuDeleteBtn" type="button" data-i18n="menu.trash.delete"></button>
   </div>
   <div id="importModeMenu" class="context-menu">
-    <button id="importMergeBtn" type="button">合并导入</button>
-    <button id="importReplaceBtn" type="button">覆盖导入</button>
+    <button id="importMergeBtn" type="button" data-i18n="menu.import.merge"></button>
+    <button id="importReplaceBtn" type="button" data-i18n="menu.import.replace"></button>
   </div>
 
   <div id="tableToolBar" class="table-toolbar">
-    <button id="tableExitBtn" type="button">退出</button>
-    <button id="tableInsertRowBtn" type="button">插入行</button>
-    <button id="tableDeleteRowBtn" type="button">删除行</button>
-    <button id="tableInsertColBtn" type="button">插入列</button>
-    <button id="tableDeleteColBtn" type="button">删除列</button>
-    <button id="tableDeleteBtn" type="button">删除表格</button>
+    <button id="tableExitBtn" type="button" data-i18n="table.exit"></button>
+    <button id="tableInsertRowBtn" type="button" data-i18n="table.insertRow"></button>
+    <button id="tableDeleteRowBtn" type="button" data-i18n="table.deleteRow"></button>
+    <button id="tableInsertColBtn" type="button" data-i18n="table.insertCol"></button>
+    <button id="tableDeleteColBtn" type="button" data-i18n="table.deleteCol"></button>
+    <button id="tableDeleteBtn" type="button" data-i18n="table.delete"></button>
   </div>
 
   <div id="imageToolMenu" class="image-tool-menu">
-    <div class="image-tool-title">图片设置</div>
+    <div class="image-tool-title" data-i18n="image.title"></div>
     <div class="image-tool-row">
-      <button id="imageDefaultBtn" type="button">默认大小</button>
-      <input id="imageWidthInput" type="number" min="1" step="1" placeholder="宽(px)" />
-      <input id="imageHeightInput" type="number" min="1" step="1" placeholder="高(px)" />
-      <button id="imageResizeApplyBtn" type="button">应用尺寸</button>
+      <button id="imageDefaultBtn" type="button" data-i18n="image.defaultSize"></button>
+      <input id="imageWidthInput" type="number" min="1" step="1" data-i18n-placeholder="image.widthPlaceholder" />
+      <input id="imageHeightInput" type="number" min="1" step="1" data-i18n-placeholder="image.heightPlaceholder" />
+      <button id="imageResizeApplyBtn" type="button" data-i18n="image.applySize"></button>
     </div>
   </div>
 
   <div id="palettePanel" class="emoji-panel palette-panel">
-    <div class="color-panel-title">颜色设置</div>
+    <div class="color-panel-title" data-i18n="palette.title"></div>
     <div id="paletteModeTabs" class="palette-mode-tabs">
-      <button type="button" class="palette-mode-btn active" data-palette-mode="text">字体颜色</button>
-      <button type="button" class="palette-mode-btn" data-palette-mode="bg">文字底色</button>
-      <button type="button" class="palette-mode-btn" data-palette-mode="page">页面底色</button>
+      <button type="button" class="palette-mode-btn active" data-palette-mode="text" data-i18n="palette.mode.text"></button>
+      <button type="button" class="palette-mode-btn" data-palette-mode="bg" data-i18n="palette.mode.bg"></button>
+      <button type="button" class="palette-mode-btn" data-palette-mode="page" data-i18n="palette.mode.page"></button>
     </div>
-    <ul id="paletteColorList" class="palette-color-list" role="listbox" aria-label="颜色列表"></ul>
+    <ul id="paletteColorList" class="palette-color-list" role="listbox" data-i18n-aria-label="palette.aria"></ul>
   </div>
 
   <div id="fontSizePanel" class="emoji-panel font-size-panel">
-    <div class="color-panel-title">选择字号（px）</div>
+    <div class="color-panel-title" data-i18n="fontSize.title"></div>
     <div id="fontSizeList" class="font-size-list">
       <button class="font-size-item" type="button" data-size="12">12</button>
       <button class="font-size-item" type="button" data-size="14">14</button>
@@ -152,19 +159,19 @@
       <button class="font-size-item" type="button" data-size="48">48</button>
     </div>
     <div class="font-size-custom">
-      <input id="fontSizeCustomInput" class="size-input" type="number" min="1" step="1" value="16" title="自定义字号（px）" />
-      <button id="fontSizeCustomApplyBtn" type="button">应用</button>
+      <input id="fontSizeCustomInput" class="size-input" type="number" min="1" step="1" value="16" data-i18n-title="fontSize.customTitle" />
+      <button id="fontSizeCustomApplyBtn" type="button" data-i18n="common.apply"></button>
     </div>
   </div>
 
   <div id="tablePanel" class="emoji-panel font-size-panel">
-    <div class="color-panel-title">插入表格</div>
+    <div class="color-panel-title" data-i18n="table.title"></div>
     <div class="table-custom">
-      <span class="table-label">行</span>
+      <span class="table-label" data-i18n="table.rows"></span>
       <input id="tableRowsInput" class="table-input" type="number" min="1" max="20" value="3" />
-      <span class="table-label">列</span>
+      <span class="table-label" data-i18n="table.cols"></span>
       <input id="tableColsInput" class="table-input" type="number" min="1" max="12" value="3" />
-      <button id="tableCustomApplyBtn" type="button">应用</button>
+      <button id="tableCustomApplyBtn" type="button" data-i18n="common.apply"></button>
     </div>
   </div>
 

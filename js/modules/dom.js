@@ -37,6 +37,7 @@
   contextMenu: document.getElementById("contextMenu"),
   pasteImageBtn: document.getElementById("pasteImageBtn"),
   modeToggleBtn: document.getElementById("modeToggleBtn"),
+  localeSelect: document.getElementById("localeSelect"),
 
   undoBtn: document.getElementById("undoBtn"),
   redoBtn: document.getElementById("redoBtn"),

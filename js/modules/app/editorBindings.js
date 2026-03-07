@@ -1,3 +1,5 @@
+﻿import { t } from "../i18n.js";
+
 export function createEditorBindings({
   dom,
   state,
@@ -29,12 +31,12 @@ export function createEditorBindings({
   const PALETTE_MODE_META = {
     text: {
       panelName: "color",
-      clearLabel: "默认黑色",
+      clearLabelKey: "palette.clear.text",
       clearAction: () => applyPaletteColorByMode("text", "rgb(0, 0, 0)")
     },
     bg: {
       panelName: "bgColor",
-      clearLabel: "清除背景色",
+      clearLabelKey: "palette.clear.bg",
       clearAction: () => {
         editor.clearBackgroundColor();
         return true;
@@ -42,10 +44,10 @@ export function createEditorBindings({
     },
     page: {
       panelName: "pageBg",
-      clearLabel: "恢复默认背景",
+      clearLabelKey: "palette.clear.page",
       clearAction: () => {
         if (!wiki.clearCurrentPageBackground(true)) return false;
-        setStatus("已恢复默认页面背景");
+        setStatus(t("status.pageBgReset"));
         return true;
       }
     }
@@ -69,18 +71,18 @@ export function createEditorBindings({
     if (mode === "text") {
       editor.exec("foreColor", value);
       modeLastColor.text = value;
-      setStatus(`已设置颜色：${value}`);
+      setStatus(t("status.textColor", { color: value }));
       return true;
     }
     if (mode === "bg") {
       editor.exec("hiliteColor", value);
       modeLastColor.bg = value;
-      setStatus(`已设置底色：${value}`);
+      setStatus(t("status.highlightColor", { color: value }));
       return true;
     }
     if (!wiki.setCurrentPageBackground(value, true)) return false;
     modeLastColor.page = value;
-    setStatus(`已设置页面背景：${value}`);
+    setStatus(t("status.pageBgColor", { color: value }));
     return true;
   }
 
@@ -93,7 +95,7 @@ export function createEditorBindings({
     const clearItem = document.createElement("li");
     clearItem.className = "palette-clear-item";
     clearItem.dataset.paletteAction = "clear";
-    clearItem.textContent = modeMeta.clearLabel;
+    clearItem.textContent = t(modeMeta.clearLabelKey);
     dom.paletteColorList.appendChild(clearItem);
 
     SHARED_COLOR_VALUES.forEach((color) => {
@@ -137,6 +139,56 @@ export function createEditorBindings({
     panels.show(panelName);
   }
 
+  function insertImageFromUrl() {
+    const src = prompt(t("prompt.imageUrl"));
+    if (!src) return;
+    const value = String(src).trim();
+    if (!value) return;
+    editor.insertImageAtCursor(value, "image");
+    setStatus(t("status.imageFromUrl"));
+  }
+
+  function insertImageFromFile() {
+    const picker = document.createElement("input");
+    picker.type = "file";
+    picker.accept = "image/*";
+    picker.style.display = "none";
+
+    picker.addEventListener("change", () => {
+      const file = picker.files && picker.files[0];
+      picker.remove();
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        editor.insertImageAtCursor(String(reader.result || ""), file.name || "image");
+        setStatus(t("status.imageFromFile"));
+      };
+      reader.onerror = () => {
+        setStatus(t("error.readLocalImageFailed"));
+      };
+      reader.readAsDataURL(file);
+    }, { once: true });
+
+    document.body.appendChild(picker);
+    picker.click();
+  }
+
+  function chooseImageInsertMode() {
+    const choice = prompt(t("prompt.imageMode"), "1");
+    if (choice === null) return;
+    const mode = String(choice || "").trim();
+    if (mode === "1") {
+      insertImageFromFile();
+      return;
+    }
+    if (mode === "2") {
+      insertImageFromUrl();
+      return;
+    }
+    setStatus(t("error.inputOneOrTwo"));
+  }
+
   function bindEditorToolbar() {
     document.querySelectorAll("[data-cmd]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -162,7 +214,7 @@ export function createEditorBindings({
 
     dom.insertWikiLinkBtn.addEventListener("click", () => {
       if (editor.isReadOnly()) return;
-      const target = prompt("输入 Wiki 链接（页面名 或 页面名#标题）", "首页#欢迎");
+      const target = prompt(t("prompt.wikiLink"), t("prompt.wikiLinkDefault"));
       if (!target) return;
       const text = `[[${target.trim()}]]`;
       editor.exec("insertHTML", text);
@@ -170,19 +222,19 @@ export function createEditorBindings({
 
     dom.imageUrlBtn.addEventListener("click", () => {
       if (editor.isReadOnly()) return;
-      const src = prompt("输入图片 URL / DataURL");
-      if (!src) return;
-      editor.insertImageAtCursor(src.trim(), "image");
+      chooseImageInsertMode();
     });
 
     dom.colorBtn.addEventListener("click", () => {
       if (editor.isReadOnly()) return;
       openPalettePanel(currentPaletteMode);
     });
+
     dom.fontSizeBtn.addEventListener("click", () => {
       if (editor.isReadOnly()) return;
       panels.toggle("fontSize");
     });
+
     dom.insertTableBtn.addEventListener("click", () => {
       if (editor.isReadOnly()) return;
       panels.toggle("table");
@@ -206,6 +258,7 @@ export function createEditorBindings({
     if (dom.paletteColorList) {
       dom.paletteColorList.addEventListener("click", (e) => {
         if (editor.isReadOnly()) return;
+
         const clearItem = e.target.closest("[data-palette-action='clear']");
         if (clearItem) {
           const modeMeta = PALETTE_MODE_META[currentPaletteMode] || PALETTE_MODE_META.text;
@@ -230,6 +283,9 @@ export function createEditorBindings({
     }
 
     setPaletteMode("text");
+    document.addEventListener("i18n:changed", () => {
+      renderPaletteColorList();
+    });
   }
 
   function bindFontSizePanel() {
@@ -265,7 +321,9 @@ export function createEditorBindings({
       if (!e.target.closest("#contextMenu")) dom.contextMenu.style.display = "none";
       if (!e.target.closest("#pageItemMenu")) dom.pageItemMenu.style.display = "none";
       if (!e.target.closest("#trashItemMenu")) dom.trashItemMenu.style.display = "none";
-      if (!e.target.closest("#importModeMenu") && !e.target.closest("#importJsonBtn")) dom.importModeMenu.style.display = "none";
+      if (!e.target.closest("#importModeMenu") && !e.target.closest("#importJsonBtn")) {
+        dom.importModeMenu.style.display = "none";
+      }
     });
 
     dom.pasteImageBtn.addEventListener("click", async () => {
@@ -294,6 +352,7 @@ export function createEditorBindings({
         active.tagName === "SELECT" ||
         active.isContentEditable
       );
+
       if (e.key === "Delete" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
         if (inInput || editor.isEditorContext()) return;
         if (!state.currentPage) return;

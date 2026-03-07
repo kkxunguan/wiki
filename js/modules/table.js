@@ -1,4 +1,6 @@
-﻿export function createTableModule({ dom, state, onContentChanged, queueAutoSave, setStatus }) {
+﻿import { t } from "./i18n.js";
+
+export function createTableModule({ dom, state, onContentChanged, queueAutoSave, setStatus }) {
   let selectedTableWrap = null;
 
   function clearTableSelection() {
@@ -13,12 +15,13 @@
     selectedTableWrap = wrap;
     if (selectedTableWrap) selectedTableWrap.classList.add("table-selected");
   }
+
   function buildTableHtml(rows, cols) {
     const safeRows = Math.min(20, Math.max(1, rows));
     const safeCols = Math.min(12, Math.max(1, cols));
     const defaultColWidth = Math.max(80, Math.floor(100 / safeCols));
     const colgroup = Array.from({ length: safeCols }, () => `<col style="width:${defaultColWidth}%;">`).join("");
-    const header = `<tr>${Array.from({ length: safeCols }, (_, i) => `<th>列${i + 1}</th>`).join("")}</tr>`;
+    const header = `<tr>${Array.from({ length: safeCols }, (_, i) => `<th>${t("table.colLabel", { index: i + 1 })}</th>`).join("")}</tr>`;
     const bodyRows = Array.from({ length: safeRows - 1 }, () => `<tr>${Array.from({ length: safeCols }, () => "<td><br></td>").join("")}</tr>`).join("");
     return `<div class="table-wrap"><table class="wiki-table"><colgroup>${colgroup}</colgroup><tbody>${header}${bodyRows}</tbody></table></div><p><br></p>`;
   }
@@ -112,7 +115,7 @@
     }
     if (rowIndex >= body.rows.length - 1) body.appendChild(row);
     else body.insertBefore(row, body.rows[rowIndex + 1]);
-    commit("已增加一行");
+    commit(t("status.tableRowAdded"));
     showToolBarForCell(row.cells[0]);
   }
 
@@ -124,7 +127,7 @@
     const row = cell.parentElement;
     const index = row.rowIndex;
     body.deleteRow(index);
-    commit("已减少一行");
+    commit(t("status.tableRowRemoved"));
     const next = body.rows[Math.min(index, body.rows.length - 1)];
     showToolBarForCell(next ? next.cells[0] : null);
   }
@@ -137,7 +140,7 @@
     const colIndex = cell.cellIndex + 1;
     Array.from(body.rows).forEach((row, idx) => {
       const newCell = document.createElement(idx === 0 ? "th" : "td");
-      newCell.innerHTML = idx === 0 ? `列${colIndex + 1}` : "<br>";
+      newCell.innerHTML = idx === 0 ? t("table.colLabel", { index: colIndex + 1 }) : "<br>";
       if (colIndex >= row.cells.length) row.appendChild(newCell);
       else row.insertBefore(newCell, row.cells[colIndex]);
     });
@@ -148,7 +151,7 @@
       if (colIndex >= colgroup.children.length) colgroup.appendChild(col);
       else colgroup.insertBefore(col, colgroup.children[colIndex]);
     }
-    commit("已增加一列");
+    commit(t("status.tableColAdded"));
     const first = body.rows[0];
     showToolBarForCell(first ? first.cells[Math.min(colIndex, first.cells.length - 1)] : cell);
   }
@@ -167,7 +170,7 @@
       const target = colgroup.children[colIndex] || colgroup.lastChild;
       if (target) colgroup.removeChild(target);
     }
-    commit("已减少一列");
+    commit(t("status.tableColRemoved"));
     const first = body.rows[0];
     showToolBarForCell(first ? first.cells[Math.max(0, colIndex - 1)] : null);
   }
@@ -177,7 +180,7 @@
     if (!table) return;
     const wrap = table.closest(".table-wrap");
     (wrap || table).remove();
-    commit("已删除表格");
+    commit(t("status.tableDeleted"));
     hideToolBar();
   }
 
@@ -233,7 +236,7 @@
       dom.editor.style.cursor = "";
       document.body.style.userSelect = "";
       queueAutoSave();
-      setStatus("已调整表格列宽");
+      setStatus(t("status.tableResized"));
     });
   }
 
@@ -261,12 +264,12 @@
       const rows = Number(dom.tableRowsInput.value);
       const cols = Number(dom.tableColsInput.value);
       if (!Number.isFinite(rows) || !Number.isFinite(cols) || rows <= 0 || cols <= 0) {
-        setStatus("表格行列请输入有效数字");
+        setStatus(t("error.tableInvalidNumber"));
         return;
       }
       exec("insertHTML", buildTableHtml(Math.round(rows), Math.round(cols)));
       queueAutoSave();
-      setStatus(`已插入 ${Math.round(rows)} x ${Math.round(cols)} 表格`);
+      setStatus(t("status.tableInserted", { rows: Math.round(rows), cols: Math.round(cols) }));
     };
 
     dom.tableCustomApplyBtn.addEventListener("click", () => {
@@ -289,4 +292,3 @@
     getCurrentTableCell
   };
 }
-

@@ -1,3 +1,5 @@
+﻿import { t } from "../i18n.js";
+
 export function createWikiBindings({
   dom,
   state,
@@ -16,11 +18,11 @@ export function createWikiBindings({
 
     dom.quickCreatePageBtn.addEventListener("click", () => {
       if (modes.getTreeMode() !== "pages") {
-        setStatus("回收站视图下不可新建页面");
+        setStatus(t("error.cannotCreateInTrashView"));
         return;
       }
       const parent = state.selectedPage && state.pages[state.selectedPage] ? state.selectedPage : null;
-      const name = wiki.createAutoPage(parent, "页面");
+      const name = wiki.createAutoPage(parent, t("page.defaultPrefix"));
       if (!name) return;
       wiki.openPage(name);
       modes.switchToEditMode();
@@ -56,7 +58,7 @@ export function createWikiBindings({
         const text = await file.text();
         importFromJsonText(text, dom.importJsonInput.dataset.mode || "merge");
       } catch {
-        setStatus("导入失败：读取文件异常");
+        setStatus(t("error.importReadFile"));
       } finally {
         dom.importJsonInput.dataset.mode = "";
       }
@@ -64,7 +66,7 @@ export function createWikiBindings({
 
     dom.modeToggleBtn.addEventListener("click", () => {
       if (state.trashPreviewName && modes.getIsReadMode()) {
-        setStatus("回收站预览仅支持阅读模式");
+        setStatus(t("error.trashPreviewReadOnlyMode"));
         return;
       }
       modes.toggleMode();
@@ -247,7 +249,6 @@ export function createWikiBindings({
     document.addEventListener("click", (e) => {
       if (!state.selectedPage) return;
       if (modes.getTreeMode() !== "pages") return;
-      // Keep tree selection while interacting with the main editor area.
       if (e.target.closest(".main")) return;
       if (e.target.closest(".page-item")) return;
       if (e.target.closest("#pageItemMenu")) return;
@@ -267,7 +268,7 @@ export function createWikiBindings({
     dom.pageMenuNewChildBtn.addEventListener("click", () => {
       const parent = getTargetPage();
       if (!parent) return;
-      const name = wiki.createAutoPage(parent, "页面");
+      const name = wiki.createAutoPage(parent, t("page.defaultPrefix"));
       if (!name) return;
       wiki.openPage(name);
       modes.switchToEditMode();
@@ -300,7 +301,7 @@ export function createWikiBindings({
       const page = getTargetPage();
       if (!page || !state.pages[page]) return;
       const current = Number(state.pages[page].sortKey ?? state.pages[page].order ?? 0);
-      const input = prompt("输入排序值（数字，越小越靠前）", String(current));
+      const input = prompt(t("prompt.sortValue"), String(current));
       if (input === null) return;
       wiki.setPageSortKey(page, input);
       dom.pageItemMenu.style.display = "none";
