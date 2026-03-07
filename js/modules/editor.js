@@ -678,6 +678,7 @@ export function createEditor({ dom, state, onContentChanged, queueAutoSave, setS
       ? (startElement.closest("p,h1,h2,h3,li,td,th,blockquote,div") || startElement)
       : null;
     if (focusEl && focusEl.scrollIntoView) {
+      dom.editor.querySelectorAll(".jump-target").forEach((el) => el.classList.remove("jump-target"));
       focusEl.scrollIntoView({ behavior: "smooth", block: "center" });
       if (focusEl.classList) {
         focusEl.classList.add("jump-target");

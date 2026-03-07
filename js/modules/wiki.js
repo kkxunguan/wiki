@@ -67,12 +67,18 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
       "SCRIPT", "STYLE", "IFRAME", "OBJECT", "EMBED", "META", "LINK", "BASE", "FORM",
       "SVG", "MATH"
     ]);
+    const transientClasses = new Set(["jump-target", "image-selected", "table-selected"]);
 
     const elements = Array.from(template.content.querySelectorAll("*"));
     elements.forEach((el) => {
       if (blockedTags.has(el.tagName)) {
         el.remove();
         return;
+      }
+
+      if (el.classList && el.classList.length) {
+        transientClasses.forEach((name) => el.classList.remove(name));
+        if (!el.classList.length) el.removeAttribute("class");
       }
 
       Array.from(el.attributes).forEach((attr) => {
@@ -320,6 +326,7 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
     if (!dom.preview) return false;
     const clean = sanitizeName(anchor);
     if (!clean) return false;
+    dom.preview.querySelectorAll(".jump-target").forEach((el) => el.classList.remove("jump-target"));
     const exactId = dom.preview.querySelector(`#${CSS.escape(clean)}`);
     const slugId = dom.preview.querySelector(`#${CSS.escape(slugify(clean))}`);
     const byTitle = Array.from(dom.preview.querySelectorAll("h1,h2,h3,h4,h5,h6")).find((h) => sanitizeName(h.textContent) === clean);
