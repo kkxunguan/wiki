@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title data-i18n="html.title"></title>
+  <title>Wiki 富文本</title>
   <link rel="stylesheet" href="./wangeditor/style.css" />
   <link rel="stylesheet" href="./css/app.css" />
 </head>
@@ -11,27 +11,22 @@
   <div class="app">
     <aside class="panel sidebar">
       <div class="sidebar-top">
-        <h2 data-i18n="sidebar.treeTitle"></h2>
-        <div id="latestVersion" class="latest-version"></div>
+        <h2>Wiki 页面树</h2>
         <div class="row">
-          <button id="quickCreatePageBtn" class="btn-primary grow" data-i18n="sidebar.quickCreate"></button>
+          <button id="quickCreatePageBtn" class="btn-primary grow">+ 新建页面</button>
         </div>
-        <div class="row">
-          <button id="importJsonBtn" class="grow" data-i18n="sidebar.importJson"></button>
-          <button id="exportJsonBtn" class="grow" data-i18n="sidebar.exportJson"></button>
-        </div>
-        <div class="section-title" data-i18n="sidebar.operationTips"></div>
-        <div class="sidebar-hint" data-i18n="sidebar.operationTipsHint"></div>
+        <div class="section-title">操作提示</div>
+        <div class="sidebar-hint">右键可打开/重命名/删除/新建子页；拖拽页面到目标页面仅调整层级，顺序请使用右键排序操作。</div>
         <div class="tree-mode-bar">
-          <button id="showPagesBtn" class="mode-tab active" type="button" data-i18n="tree.pages"></button>
-          <button id="showTrashBtn" class="mode-tab" type="button" data-i18n="tree.trash"></button>
+          <button id="showPagesBtn" class="mode-tab active" type="button">页面</button>
+          <button id="showTrashBtn" class="mode-tab" type="button">回收站</button>
         </div>
       </div>
       <div class="sidebar-search">
-        <div class="section-title" data-i18n="search.title"></div>
+        <div class="section-title">全局搜索</div>
         <div class="search-input-row">
-          <input id="globalSearchInput" type="text" data-i18n-placeholder="search.placeholder" />
-          <button id="clearSearchBtn" type="button" data-i18n="search.clear"></button>
+          <input id="globalSearchInput" type="text" placeholder="输入关键词搜索全部页面" />
+          <button id="clearSearchBtn" type="button">清空</button>
         </div>
         <div id="globalSearchResultMeta" class="search-meta hidden"></div>
       </div>
@@ -43,14 +38,7 @@
     <section class="panel main">
       <div class="mode-switch-bar">
         <span id="pagePath" class="page-path"></span>
-        <label class="locale-switch" for="localeSelect">
-          <span data-i18n="locale.label"></span>
-          <select id="localeSelect">
-            <option value="zh-CN" data-i18n="locale.zhCN"></option>
-            <option value="en-US" data-i18n="locale.enUS"></option>
-          </select>
-        </label>
-        <button id="modeToggleBtn" type="button" data-i18n="mode.read"></button>
+        <button id="modeToggleBtn" type="button">阅读</button>
       </div>
       <div id="editorToolbarHost" class="toolbar">
         <div id="editorToolbar" class="wang-toolbar"></div>
@@ -60,8 +48,8 @@
         <div id="editorWrap" class="editor-wrap">
           <div id="editor" class="editor wang-editor"></div>
           <div class="meta">
-            <span id="counter" data-i18n="counter.initial"></span>
-            <span data-i18n="editor.pasteHint"></span>
+            <span id="counter">0 字</span>
+            <span>使用 WangEditor 工具栏进行富文本编辑。</span>
             <span id="status" class="status inline-status"></span>
           </div>
         </div>
@@ -70,27 +58,21 @@
   </div>
 
   <div id="pageItemMenu" class="context-menu">
-    <button id="pageMenuOpenBtn" type="button" data-i18n="menu.page.open"></button>
-    <button id="pageMenuNewChildBtn" type="button" data-i18n="menu.page.newChild"></button>
-    <button id="pageMenuRenameBtn" type="button" data-i18n="menu.page.rename"></button>
-    <button id="pageMenuSortUpBtn" type="button" data-i18n="menu.page.sortUp"></button>
-    <button id="pageMenuSortDownBtn" type="button" data-i18n="menu.page.sortDown"></button>
-    <button id="pageMenuSetSortBtn" type="button" data-i18n="menu.page.setSort"></button>
-    <button id="pageMenuMoveRootBtn" type="button" data-i18n="menu.page.moveRoot"></button>
-    <button id="pageMenuDeleteBtn" type="button" data-i18n="menu.page.delete"></button>
-    <button id="pageMenuDeleteKeepChildrenBtn" type="button" data-i18n="menu.page.deleteKeepChildren"></button>
+    <button id="pageMenuOpenBtn" type="button">打开页面</button>
+    <button id="pageMenuNewChildBtn" type="button">新建子页面</button>
+    <button id="pageMenuRenameBtn" type="button">重命名页面</button>
+    <button id="pageMenuSortUpBtn" type="button">上移</button>
+    <button id="pageMenuSortDownBtn" type="button">下移</button>
+    <button id="pageMenuSetSortBtn" type="button">设置排序值</button>
+    <button id="pageMenuMoveRootBtn" type="button">移动到顶级</button>
+    <button id="pageMenuDeleteBtn" type="button">全部删除</button>
+    <button id="pageMenuDeleteKeepChildrenBtn" type="button">只删本页</button>
   </div>
 
   <div id="trashItemMenu" class="context-menu">
-    <button id="trashMenuRestoreBtn" type="button" data-i18n="menu.trash.restore"></button>
-    <button id="trashMenuDeleteBtn" type="button" data-i18n="menu.trash.delete"></button>
+    <button id="trashMenuRestoreBtn" type="button">恢复</button>
+    <button id="trashMenuDeleteBtn" type="button">彻底删除</button>
   </div>
-  <div id="importModeMenu" class="context-menu">
-    <button id="importMergeBtn" type="button" data-i18n="menu.import.merge"></button>
-    <button id="importReplaceBtn" type="button" data-i18n="menu.import.replace"></button>
-  </div>
-
-  <input id="importJsonInput" type="file" accept="application/json,.json" style="display:none;" />
 
   <script src="./wangeditor/index.js"></script>
   <script type="module" src="./js/main.js"></script>

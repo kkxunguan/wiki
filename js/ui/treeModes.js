@@ -1,4 +1,4 @@
-﻿import { t } from "../i18n.js";
+import { t } from "../text.js";
 
 export function createModes({ dom, editor }) {
   const MODE_STORAGE_KEY = "wiki-mode-v1";

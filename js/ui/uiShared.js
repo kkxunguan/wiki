@@ -1,4 +1,4 @@
-﻿import { t } from "../i18n.js";
+import { t } from "../text.js";
 
 function parsePathAndTime(content, prefix) {
   if (!content.startsWith(prefix)) return null;

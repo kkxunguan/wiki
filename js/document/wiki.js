@@ -1,20 +1,6 @@
-﻿import { t } from "./i18n.js";
+import { t } from "../text.js";
 
-export function createWiki({ dom, state, savePages, saveTrash, onContentChanged, setStatus }) {
-  function showMenuInViewport(menuEl, clientX, clientY) {
-    if (!menuEl) return;
-    const margin = 8;
-    menuEl.style.visibility = "hidden";
-    menuEl.style.display = "block";
-    const rect = menuEl.getBoundingClientRect();
-    const maxLeft = Math.max(margin, window.innerWidth - rect.width - margin);
-    const maxTop = Math.max(margin, window.innerHeight - rect.height - margin);
-    const left = Math.min(Math.max(clientX, margin), maxLeft);
-    const top = Math.min(Math.max(clientY, margin), maxTop);
-    menuEl.style.left = `${left}px`;
-    menuEl.style.top = `${top}px`;
-    menuEl.style.visibility = "visible";
-  }
+export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewport, setStatus }) {
 
   function sanitizeName(name) {
     return (name || "").trim();
@@ -67,7 +53,13 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
       "SCRIPT", "STYLE", "IFRAME", "OBJECT", "EMBED", "META", "LINK", "BASE", "FORM",
       "SVG", "MATH"
     ]);
-    const transientClasses = new Set(["jump-target"]);
+    const transientClasses = new Set([
+      "jump-target",
+      "image-selected",
+      "table-selected",
+      "table-wrap",
+      "wiki-table"
+    ]);
 
     const elements = Array.from(template.content.querySelectorAll("*"));
     elements.forEach((el) => {
@@ -287,10 +279,20 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
   }
 
   function formatSaveTime(date = new Date()) {
-    return date.toLocaleTimeString(t("locale.tag"), { hour12: false });
+    return date.toLocaleTimeString("zh-CN", { hour12: false });
+  }
+
+  function isAdapterEditorMode() {
+    const adapter = state.editorAdapter;
+    return Boolean(
+      adapter
+      && typeof adapter.getHtml === "function"
+      && typeof adapter.setHtml === "function"
+    );
   }
 
   function captureEditorSelectionSnapshot() {
+    if (isAdapterEditorMode()) return null;
     if (!dom.editor) return null;
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return null;
@@ -300,6 +302,7 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
   }
 
   function restoreEditorSelectionSnapshot(rangeSnapshot, shouldFocus = false) {
+    if (isAdapterEditorMode()) return;
     if (!rangeSnapshot || !dom.editor) return;
     const sel = window.getSelection();
     if (!sel) return;
@@ -430,7 +433,6 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
     writeEditorHtml(page.content || "<p></p>");
     applyEditorBackground(page.pageBackground);
     renderPageList();
-    onContentChanged();
     setStatus(t("status.currentPage", { path: buildPagePath(clean) }));
   }
 
@@ -480,36 +482,6 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
     return true;
   }
 
-  function setCurrentPageBackground(rawColor, silent = false) {
-    if (state.trashPreviewName) {
-      if (!silent) setStatus(t("error.trashPreviewNoPageBg"));
-      return false;
-    }
-    if (!state.currentPage || !state.pages[state.currentPage]) {
-      if (!silent) setStatus(t("error.openOrCreateFirst"));
-      return false;
-    }
-
-    const color = sanitizePageBackground(rawColor);
-    const pageName = state.currentPage;
-    state.pages[pageName] = {
-      ...state.pages[pageName],
-      pageBackground: color
-    };
-    applyEditorBackground(color);
-    persistPages();
-
-    if (!silent) {
-      const label = color || t("status.pageBgDefault");
-      setStatus(t("status.pageBgSet", { label }));
-    }
-    return true;
-  }
-
-  function clearCurrentPageBackground(silent = false) {
-    return setCurrentPageBackground(PAGE_BG_DEFAULT, silent);
-  }
-
   function movePage(name, targetParent) {
     const cleanName = sanitizeName(name);
     if (!cleanName || !state.pages[cleanName]) return false;
@@ -525,40 +497,6 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
     persistPages();
     renderPageList();
     setStatus(t("status.hierarchyUpdated", { path: buildPagePath(cleanName) }));
-    return true;
-  }
-
-  function reorderPage(name, targetName, position = "after") {
-    const cleanName = sanitizeName(name);
-    const cleanTarget = sanitizeName(targetName);
-    if (!cleanName || !cleanTarget || !state.pages[cleanName] || !state.pages[cleanTarget]) return false;
-    if (cleanName === cleanTarget) return false;
-    if (position !== "before" && position !== "after") return false;
-
-    const targetParent = state.pages[cleanTarget].parent || null;
-    if (targetParent && isDescendant(targetParent, cleanName)) return setStatus(t("error.moveToDescendant")), false;
-
-    state.pages[cleanName].parent = targetParent;
-    const siblings = Object.keys(state.pages)
-      .filter((n) => (state.pages[n].parent || null) === targetParent && n !== cleanName)
-      .sort((a, b) => {
-        const ao = Number(state.pages[a].sortKey ?? state.pages[a].order) || 0;
-        const bo = Number(state.pages[b].sortKey ?? state.pages[b].order) || 0;
-        if (ao !== bo) return ao - bo;
-        return a.localeCompare(b, "zh-CN");
-      });
-
-    const targetIdx = siblings.indexOf(cleanTarget);
-    const insertIdx = position === "before" ? targetIdx : targetIdx + 1;
-    siblings.splice(Math.max(0, insertIdx), 0, cleanName);
-    siblings.forEach((n, idx) => {
-      state.pages[n].sortKey = idx;
-      state.pages[n].order = idx;
-    });
-    normalizeAllSiblingOrders(state.pages);
-    persistPages();
-    renderPageList();
-    setStatus(t("status.reordered", { name: cleanName, position: t(position === "before" ? "status.position.before" : "status.position.after"), target: cleanTarget }));
     return true;
   }
 
@@ -818,11 +756,6 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
     return true;
   }
 
-  function deleteCurrentPage() {
-    if (!state.currentPage || !state.pages[state.currentPage]) return setStatus(t("error.noPageToDelete"));
-    deletePageByName(state.currentPage);
-  }
-
   function bindTrashActions() {
     if (!dom.trashList) return;
     dom.trashList.addEventListener("click", (e) => {
@@ -862,25 +795,16 @@ export function createWiki({ dom, state, savePages, saveTrash, onContentChanged,
     normalizeTrash,
     renderPageList,
     renderTrashList,
-    createPage,
     createAutoPage,
     openPage,
-    previewTrashPage,
     saveCurrentPage,
-    setCurrentPageBackground,
-    clearCurrentPageBackground,
     movePage,
-    reorderPage,
     movePageSort,
     setPageSortKey,
     renamePage,
     deletePageByName,
     deletePageKeepChildrenByName,
-    deleteCurrentPage,
-    restoreTrashRoot,
-    purgeTrashRoot,
     bindTrashActions
   };
 }
-
 

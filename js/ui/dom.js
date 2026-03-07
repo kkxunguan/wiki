@@ -14,13 +14,6 @@
   globalSearchResultMeta: document.getElementById("globalSearchResultMeta"),
   globalSearchResults: document.getElementById("globalSearchResults"),
 
-  importJsonBtn: document.getElementById("importJsonBtn"),
-  exportJsonBtn: document.getElementById("exportJsonBtn"),
-  importJsonInput: document.getElementById("importJsonInput"),
-  importModeMenu: document.getElementById("importModeMenu"),
-  importMergeBtn: document.getElementById("importMergeBtn"),
-  importReplaceBtn: document.getElementById("importReplaceBtn"),
-
   pageItemMenu: document.getElementById("pageItemMenu"),
   pageMenuOpenBtn: document.getElementById("pageMenuOpenBtn"),
   pageMenuNewChildBtn: document.getElementById("pageMenuNewChildBtn"),
@@ -39,7 +32,5 @@
   counter: document.getElementById("counter"),
   statusEl: document.getElementById("status"),
   pagePathEl: document.getElementById("pagePath"),
-  modeToggleBtn: document.getElementById("modeToggleBtn"),
-  localeSelect: document.getElementById("localeSelect"),
-  latestVersionEl: document.getElementById("latestVersion")
+  modeToggleBtn: document.getElementById("modeToggleBtn")
 };

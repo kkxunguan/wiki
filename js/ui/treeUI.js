@@ -1,4 +1,4 @@
-﻿import { t } from "../i18n.js";
+import { t } from "../text.js";
 
 export function createWikiBindings({
   dom,
@@ -7,9 +7,7 @@ export function createWikiBindings({
   editor,
   modes,
   setStatus,
-  showMenuInViewport,
-  exportAllToJson,
-  importFromJsonText
+  showMenuInViewport
 }) {
   function focusEditor(atEnd = false) {
     if (editor && typeof editor.focus === "function") {
@@ -38,41 +36,6 @@ export function createWikiBindings({
       wiki.openPage(name);
       modes.switchToEditMode();
       focusEditor(true);
-    });
-
-    dom.exportJsonBtn.addEventListener("click", () => {
-      exportAllToJson();
-    });
-
-    dom.importJsonBtn.addEventListener("click", () => {
-      const rect = dom.importJsonBtn.getBoundingClientRect();
-      showMenuInViewport(dom.importModeMenu, rect.left, rect.bottom + 4);
-    });
-
-    dom.importMergeBtn.addEventListener("click", () => {
-      dom.importModeMenu.style.display = "none";
-      dom.importJsonInput.dataset.mode = "merge";
-      dom.importJsonInput.click();
-    });
-
-    dom.importReplaceBtn.addEventListener("click", () => {
-      dom.importModeMenu.style.display = "none";
-      dom.importJsonInput.dataset.mode = "replace";
-      dom.importJsonInput.click();
-    });
-
-    dom.importJsonInput.addEventListener("change", async () => {
-      const file = dom.importJsonInput.files && dom.importJsonInput.files[0];
-      dom.importJsonInput.value = "";
-      if (!file) return;
-      try {
-        const text = await file.text();
-        importFromJsonText(text, dom.importJsonInput.dataset.mode || "merge");
-      } catch {
-        setStatus(t("error.importReadFile"));
-      } finally {
-        dom.importJsonInput.dataset.mode = "";
-      }
     });
 
     dom.modeToggleBtn.addEventListener("click", () => {
@@ -405,9 +368,6 @@ export function createWikiBindings({
   }
 
   return {
-    bindAll,
-    bindWikiActions,
-    bindPageTreeContextMenu,
-    bindPageTreeDragDrop
+    bindAll
   };
 }

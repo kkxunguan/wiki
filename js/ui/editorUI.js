@@ -1,4 +1,4 @@
-﻿import { t } from "./i18n.js";
+import { t } from "../text.js";
 
 function htmlToPlainText(html) {
   const template = document.createElement("template");
@@ -11,16 +11,15 @@ function ensureHtml(input) {
   return raw || "<p><br></p>";
 }
 
-function mapLocaleToWang(locale) {
-  return String(locale || "").toLowerCase().startsWith("en") ? "en" : "zh-CN";
-}
-
-export function createEditor({ dom, state, onContentChanged, queueAutoSave, setStatus }) {
+export function createEditor({ dom, state, onContentChanged, setStatus }) {
   let readOnly = false;
   let suppressChange = false;
   let wangEditor = null;
   let wangToolbar = null;
-  let localeListenerBound = false;
+  let wangReady = false;
+  let pendingHtml = null;
+  let pendingSetHtmlFrame = 0;
+  let pendingSetHtmlRetry = 0;
 
   function hasWangEditor() {
     return Boolean(
@@ -37,15 +36,65 @@ export function createEditor({ dom, state, onContentChanged, queueAutoSave, setS
     return ensureHtml(dom.editor && dom.editor.innerHTML);
   }
 
-  function setHtml(nextHtml) {
-    const safeHtml = ensureHtml(nextHtml);
+  function flushPendingSetHtml() {
+    pendingSetHtmlFrame = 0;
+    if (!wangEditor || typeof wangEditor.setHtml !== "function") {
+      pendingHtml = null;
+      pendingSetHtmlRetry = 0;
+      return;
+    }
+    if (!wangReady) {
+      pendingSetHtmlFrame = requestAnimationFrame(flushPendingSetHtml);
+      return;
+    }
+
+    const html = pendingHtml;
+    pendingHtml = null;
+    if (html === null) return;
+
     suppressChange = true;
     try {
-      if (wangEditor && typeof wangEditor.setHtml === "function") {
-        wangEditor.setHtml(safeHtml);
-      } else if (dom.editor) {
-        dom.editor.innerHTML = safeHtml;
+      if (typeof wangEditor.blur === "function") {
+        wangEditor.blur();
       }
+      wangEditor.setHtml(html);
+      pendingSetHtmlRetry = 0;
+    } catch (err) {
+      pendingHtml = html;
+      pendingSetHtmlRetry += 1;
+      if (pendingSetHtmlRetry <= 3) {
+        pendingSetHtmlFrame = requestAnimationFrame(flushPendingSetHtml);
+      } else {
+        pendingHtml = null;
+        pendingSetHtmlRetry = 0;
+        console.error(err);
+      }
+    } finally {
+      suppressChange = false;
+      updateCounter();
+    }
+
+    if (pendingHtml !== null && !pendingSetHtmlFrame) {
+      pendingSetHtmlFrame = requestAnimationFrame(flushPendingSetHtml);
+    }
+  }
+
+  function scheduleSetHtml(safeHtml) {
+    if (!wangEditor || typeof wangEditor.setHtml !== "function") return false;
+    pendingHtml = safeHtml;
+    if (!pendingSetHtmlFrame) {
+      pendingSetHtmlFrame = requestAnimationFrame(flushPendingSetHtml);
+    }
+    return true;
+  }
+
+  function setHtml(nextHtml) {
+    const safeHtml = ensureHtml(nextHtml);
+    if (scheduleSetHtml(safeHtml)) return;
+
+    suppressChange = true;
+    try {
+      if (dom.editor) dom.editor.innerHTML = safeHtml;
     } finally {
       suppressChange = false;
     }
@@ -57,15 +106,6 @@ export function createEditor({ dom, state, onContentChanged, queueAutoSave, setS
       return String(wangEditor.getText() || "").replace(/\s+/g, "").trim();
     }
     return htmlToPlainText(getHtml());
-  }
-
-  function isEditorContext() {
-    if (!dom.editor) return false;
-    const active = document.activeElement;
-    if (active && (active === dom.editor || dom.editor.contains(active))) return true;
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return false;
-    return dom.editor.contains(sel.getRangeAt(0).commonAncestorContainer);
   }
 
   function focus(atEnd = false) {
@@ -92,6 +132,14 @@ export function createEditor({ dom, state, onContentChanged, queueAutoSave, setS
   }
 
   function destroyWangEditor() {
+    wangReady = false;
+    pendingHtml = null;
+    pendingSetHtmlRetry = 0;
+    if (pendingSetHtmlFrame) {
+      cancelAnimationFrame(pendingSetHtmlFrame);
+      pendingSetHtmlFrame = 0;
+    }
+
     if (wangToolbar && typeof wangToolbar.destroy === "function") {
       try {
         wangToolbar.destroy();
@@ -124,9 +172,7 @@ export function createEditor({ dom, state, onContentChanged, queueAutoSave, setS
 
     const E = window.wangEditor;
     try {
-      if (typeof E.i18nChangeLanguage === "function") {
-        E.i18nChangeLanguage(mapLocaleToWang(t("locale.tag")));
-      }
+      wangReady = false;
 
       wangEditor = E.createEditor({
         selector: "#editor",
@@ -153,6 +199,13 @@ export function createEditor({ dom, state, onContentChanged, queueAutoSave, setS
 
       applyReadOnlyState();
       updateCounter();
+      requestAnimationFrame(() => {
+        if (!wangEditor) return;
+        wangReady = true;
+        if (pendingHtml !== null && !pendingSetHtmlFrame) {
+          pendingSetHtmlFrame = requestAnimationFrame(flushPendingSetHtml);
+        }
+      });
       return true;
     } catch (err) {
       console.error(err);
@@ -168,49 +221,9 @@ export function createEditor({ dom, state, onContentChanged, queueAutoSave, setS
     updateCounter();
   }
 
-  function rebuildEditorForLocale() {
-    if (!hasWangEditor()) return;
-    const html = getHtml();
-    const wasReadOnly = readOnly;
-    destroyWangEditor();
-    initWangEditor(html);
-    readOnly = wasReadOnly;
-    applyReadOnlyState();
-  }
-
-  function bindLocaleListenerOnce() {
-    if (localeListenerBound) return;
-    localeListenerBound = true;
-    document.addEventListener("i18n:changed", () => {
-      rebuildEditorForLocale();
-    });
-  }
-
   function setReadOnly(value) {
     readOnly = Boolean(value);
     applyReadOnlyState();
-  }
-
-  function isReadOnly() {
-    return readOnly;
-  }
-
-  function undoEditor() {
-    if (!wangEditor || readOnly) return;
-    if (typeof wangEditor.undo === "function") {
-      wangEditor.undo();
-      setStatus(t("status.undo"));
-      queueAutoSave();
-    }
-  }
-
-  function redoEditor() {
-    if (!wangEditor || readOnly) return;
-    if (typeof wangEditor.redo === "function") {
-      wangEditor.redo();
-      setStatus(t("status.redo"));
-      queueAutoSave();
-    }
   }
 
   function getSearchRoot() {
@@ -315,27 +328,9 @@ export function createEditor({ dom, state, onContentChanged, queueAutoSave, setS
     return true;
   }
 
-  function insertImageAtCursor(src, alt = "image") {
-    if (!src || readOnly) return;
-    if (wangEditor && typeof wangEditor.dangerouslyInsertHtml === "function") {
-      const safeSrc = String(src).replace(/"/g, "&quot;");
-      const safeAlt = String(alt || "image").replace(/"/g, "&quot;");
-      wangEditor.dangerouslyInsertHtml(`<img src="${safeSrc}" alt="${safeAlt}" />`);
-      notifyContentChanged();
-      return;
-    }
-    if (dom.editor) {
-      dom.editor.innerHTML = `${dom.editor.innerHTML || ""}<img src="${src}" alt="${alt}" />`;
-      notifyContentChanged();
-    }
-  }
-
   state.editorAdapter = {
     getHtml,
-    setHtml,
-    getText,
-    focus,
-    isReadOnly: () => readOnly
+    setHtml
   };
 
   const bootHtml = ensureHtml(dom.editor && dom.editor.innerHTML);
@@ -344,19 +339,10 @@ export function createEditor({ dom, state, onContentChanged, queueAutoSave, setS
     setStatus(t("error.wangEditorLoadFailed"));
     initFallbackEditor();
   }
-  bindLocaleListenerOnce();
 
   return {
-    getHtml,
-    setHtml,
-    getText,
     focus,
-    undoEditor,
-    redoEditor,
     updateCounter,
-    insertImageAtCursor,
-    isEditorContext,
-    isReadOnly,
     setReadOnly,
     jumpToTextOccurrence
   };

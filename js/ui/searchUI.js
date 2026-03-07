@@ -1,4 +1,4 @@
-﻿import { t } from "../i18n.js";
+import { t } from "../text.js";
 
 function escapeHtml(text) {
   return String(text || "")
@@ -127,7 +127,6 @@ export function createSearchBindings({ dom, search, setStatus }) {
 
   return {
     bindAll,
-    renderResults,
     refreshActiveQuery
   };
 }

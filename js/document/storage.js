@@ -1,4 +1,4 @@
-﻿import { t } from "./i18n.js";
+import { t } from "../text.js";
 
 const DB_NAME = "wiki-richtext-db";
 const DB_VERSION = 1;
@@ -43,7 +43,7 @@ async function idbSet(key, value) {
   });
 }
 
-export function defaultPages() {
+function defaultPages() {
   const home = t("page.home");
   const usage = t("page.usage");
   return {
