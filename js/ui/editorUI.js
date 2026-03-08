@@ -1,4 +1,7 @@
 import { t } from "../text.js";
+import { dom } from "./dom.js";
+import { state } from "../document/state.js";
+import { setStatus } from "./uiShared.js";
 
 // 将 HTML 转为纯文本并压缩空白，用于字数统计。
 function htmlToPlainText(html) {
@@ -14,7 +17,7 @@ function ensureHtml(input) {
 }
 
 // 创建编辑器适配层，统一 WangEditor 与降级编辑模式行为。
-export function createEditor({ dom, state, onContentChanged, setStatus }) {
+export function createEditor({ onContentChanged }) {
   let readOnly = false;
   let suppressChange = false;
   let wangEditor = null;

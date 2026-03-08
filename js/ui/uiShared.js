@@ -1,4 +1,5 @@
 import { t } from "../text.js";
+import { dom } from "./dom.js";
 
 // 从状态文本中拆出“路径 + 时间”，供状态栏统一解析。
 function parsePathAndTime(content, prefix) {
@@ -13,8 +14,8 @@ function parsePathAndTime(content, prefix) {
   };
 }
 
-// 统一设置状态显示：根据文本前缀决定写入路径栏还是状态栏。
-export function setStatus(dom, text) {
+// 全局状态显示入口：根据文本前缀决定写入路径栏还是状态栏。
+export function setStatus(text) {
   const content = String(text || "");
 
   const currentPagePrefix = t("status.currentPagePrefix");

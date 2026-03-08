@@ -10,7 +10,7 @@ import {
 import { loadPages, savePages, loadJson, saveJson } from "./document/storage.js";
 import { createEditor } from "./ui/editorUI.js";
 import { createWiki } from "./document/wiki.js";
-import { setStatus as setStatusText, showMenuInViewport } from "./ui/uiShared.js";
+import { setStatus, showMenuInViewport } from "./ui/uiShared.js";
 import { createModes } from "./ui/treeModes.js";
 import { createWikiBindings } from "./ui/treeUI.js";
 import { createSearch } from "./document/search.js";
@@ -54,26 +54,21 @@ function isLatestTrashShape(item) {
   return true;
 }
 
-// 创建自动保存调度器（防抖），用于编辑内容变更时触发保存。
-function createQueueAutoSave() {
-  // 延迟保存当前页面，并在保存成功后刷新搜索结果。
-  return function queueAutoSave() {
-    if (state.autoSaveTimer) clearTimeout(state.autoSaveTimer);
-    state.autoSaveTimer = setTimeout(() => {
-      if (!wiki) return;
-      const saved = wiki.saveCurrentPage(true);
-      if (saved && searchBindings && typeof searchBindings.refreshActiveQuery === "function") {
-        searchBindings.refreshActiveQuery();
-      }
-    }, AUTO_SAVE_DELAY_MS);
-  };
+// 自动保存调度器（防抖）：编辑变更后延迟保存并刷新搜索结果。
+function queueAutoSave() {
+  if (state.autoSaveTimer) clearTimeout(state.autoSaveTimer);
+  state.autoSaveTimer = setTimeout(() => {
+    if (!wiki) return;
+    const saved = wiki.saveCurrentPage(true);
+    if (saved && searchBindings && typeof searchBindings.refreshActiveQuery === "function") {
+      searchBindings.refreshActiveQuery();
+    }
+  }, AUTO_SAVE_DELAY_MS);
 }
 
 // 应用初始化入口：组装模块、加载数据、迁移结构并完成首屏渲染。
 async function init() {
   // 步骤 1：准备通用回调（状态提示、自动保存、编辑器变更监听）。
-  const setStatus = (text) => setStatusText(dom, text);
-  const queueAutoSave = createQueueAutoSave();
   const onContentChanged = () => {
     if (!editor || !wiki) return;
     editor.updateCounter();
@@ -81,7 +76,7 @@ async function init() {
   };
 
   // 步骤 2：创建核心服务（编辑器 + Wiki 业务服务）。
-  editor = createEditor({ dom, state, onContentChanged, setStatus });
+  editor = createEditor({ onContentChanged });
   wiki = createWiki({
     dom,
     state,
