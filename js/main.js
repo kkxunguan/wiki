@@ -4,7 +4,6 @@ import {
   STORAGE_TRASH_KEY,
   STORAGE_SCHEMA_KEY,
   STORAGE_SCHEMA_VERSION,
-  AUTO_SAVE_DELAY_MS,
   state
 } from "./document/state.js";
 import { loadPages, savePages, loadJson, saveJson } from "./document/storage.js";
@@ -54,29 +53,9 @@ function isLatestTrashShape(item) {
   return true;
 }
 
-// 自动保存调度器（防抖）：编辑变更后延迟保存并刷新搜索结果。
-function queueAutoSave() {
-  if (state.autoSaveTimer) clearTimeout(state.autoSaveTimer);
-  state.autoSaveTimer = setTimeout(() => {
-    if (!wiki) return;
-    const saved = wiki.saveCurrentPage(true);
-    if (saved && searchBindings && typeof searchBindings.refreshActiveQuery === "function") {
-      searchBindings.refreshActiveQuery();
-    }
-  }, AUTO_SAVE_DELAY_MS);
-}
-
 // 应用初始化入口：组装模块、加载数据、迁移结构并完成首屏渲染。
 async function init() {
-  // 步骤 1：准备通用回调（状态提示、自动保存、编辑器变更监听）。
-  const onContentChanged = () => {
-    if (!editor || !wiki) return;
-    editor.updateCounter();
-    queueAutoSave();
-  };
-
-  // 步骤 2：创建核心服务（编辑器 + Wiki 业务服务）。
-  editor = createEditor({ onContentChanged });
+  // 步骤 1：创建核心服务（Wiki 业务服务 + 编辑器）。
   wiki = createWiki({
     dom,
     state,
@@ -85,8 +64,16 @@ async function init() {
     showMenuInViewport,
     setStatus
   });
+  editor = createEditor({
+    saveCurrentPage: (silent = true) => wiki.saveCurrentPage(silent),
+    refreshSearchQuery: () => {
+      if (searchBindings && typeof searchBindings.refreshActiveQuery === "function") {
+        searchBindings.refreshActiveQuery();
+      }
+    }
+  });
 
-  // 步骤 3：创建模式、树交互、搜索等 UI 绑定器。
+  // 步骤 2：创建模式、树交互、搜索等 UI 绑定器。
   const modes = createModes({ dom, editor });
   const wikiBindings = createWikiBindings({
     dom,
@@ -109,12 +96,12 @@ async function init() {
     setStatus
   });
 
-  // 步骤 4：读取本地存储快照（页面、回收站、Schema 版本）。
+  // 步骤 3：读取本地存储快照（页面、回收站、Schema 版本）。
   const rawPages = await loadPages(STORAGE_KEY);
   const rawTrash = await loadJson(STORAGE_TRASH_KEY, {});
   const storedSchemaVersion = Number(await loadJson(STORAGE_SCHEMA_KEY, 0)) || 0;
 
-  // 步骤 5：判断是否需要迁移，并将数据规范化写入运行时 state。
+  // 步骤 4：判断是否需要迁移，并将数据规范化写入运行时 state。
   const pagesNeedMigration = !isObjectRecord(rawPages)
     || Object.values(rawPages).some((page) => !isLatestPageShape(page));
   const trashNeedMigration = !isObjectRecord(rawTrash)
@@ -134,14 +121,14 @@ async function init() {
     });
   }
 
-  // 步骤 6：如需迁移，则把规范化后的数据回写到存储层。
+  // 步骤 5：如需迁移，则把规范化后的数据回写到存储层。
   if (pagesNeedMigration || trashNeedMigration || schemaNeedMigration) {
     savePages(STORAGE_KEY, state.pages);
     saveJson(STORAGE_TRASH_KEY, state.trash);
     saveJson(STORAGE_SCHEMA_KEY, STORAGE_SCHEMA_VERSION);
   }
 
-  // 步骤 7：绑定事件并完成首屏渲染。
+  // 步骤 6：绑定事件并完成首屏渲染。
   wikiBindings.bindAll();
   searchBindings.bindAll();
 

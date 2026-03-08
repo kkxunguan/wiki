@@ -1,6 +1,6 @@
 import { t } from "../text.js";
 import { dom } from "./dom.js";
-import { state } from "../document/state.js";
+import { AUTO_SAVE_DELAY_MS, state } from "../document/state.js";
 import { setStatus } from "./uiShared.js";
 
 // 将 HTML 转为纯文本并压缩空白，用于字数统计。
@@ -17,7 +17,7 @@ function ensureHtml(input) {
 }
 
 // 创建编辑器适配层，统一 WangEditor 与降级编辑模式行为。
-export function createEditor({ onContentChanged }) {
+export function createEditor({ saveCurrentPage, refreshSearchQuery }) {
   let readOnly = false;
   let suppressChange = false;
   let wangEditor = null;
@@ -144,10 +144,22 @@ export function createEditor({ onContentChanged }) {
     dom.counter.textContent = t("counter.words", { count: getText().length });
   }
 
+  // 自动保存调度器（防抖）：编辑变更后延迟保存并刷新搜索结果。
+  function queueAutoSave() {
+    if (state.autoSaveTimer) clearTimeout(state.autoSaveTimer);
+    state.autoSaveTimer = setTimeout(() => {
+      if (typeof saveCurrentPage !== "function") return;
+      const saved = saveCurrentPage(true);
+      if (!saved) return;
+      if (typeof refreshSearchQuery === "function") refreshSearchQuery();
+    }, AUTO_SAVE_DELAY_MS);
+  }
+
   // 向外通知“内容发生变化”，并抛出全局自定义事件。
   function notifyContentChanged() {
     if (suppressChange) return;
-    onContentChanged();
+    updateCounter();
+    queueAutoSave();
     document.dispatchEvent(new CustomEvent("editor:content-change"));
   }
 
