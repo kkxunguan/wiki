@@ -56,14 +56,8 @@ function isLatestTrashShape(item) {
 // 应用初始化入口：组装模块、加载数据、迁移结构并完成首屏渲染。
 async function init() {
   // 步骤 1：创建核心服务（Wiki 业务服务 + 编辑器）。
-  wiki = createWiki({
-    dom,
-    state,
-    savePages: (pages) => savePages(STORAGE_KEY, pages),
-    saveTrash: (trash) => saveJson(STORAGE_TRASH_KEY, trash),
-    showMenuInViewport,
-    setStatus
-  });
+  wiki = createWiki();
+
   editor = createEditor({
     saveCurrentPage: (silent = true) => wiki.saveCurrentPage(silent),
     refreshSearchQuery: () => {

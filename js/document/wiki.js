@@ -1,7 +1,11 @@
 import { t } from "../text.js";
+import { dom } from "../ui/dom.js";
+import { setStatus, showMenuInViewport } from "../ui/uiShared.js";
+import { STORAGE_KEY, STORAGE_TRASH_KEY, state } from "./state.js";
+import { savePages, saveJson } from "./storage.js";
 
 // 创建 Wiki 核心服务，封装页面树、回收站和编辑区的主要业务逻辑。
-export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewport, setStatus }) {
+export function createWiki() {
 
   // 清理页面名输入，统一去掉首尾空格。
   function sanitizeName(name) {
@@ -130,12 +134,12 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
 
   // 持久化当前页面树数据。
   function persistPages() {
-    savePages(state.pages);
+    savePages(STORAGE_KEY, state.pages);
   }
 
-  // 持久化当前回收站数据（可选注入）。
+  // 持久化当前回收站数据。
   function persistTrash() {
-    if (typeof saveTrash === "function") saveTrash(state.trash);
+    saveJson(STORAGE_TRASH_KEY, state.trash);
   }
 
   // 规范化页面数据结构并修正非法父子关系。
