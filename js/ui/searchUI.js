@@ -1,4 +1,7 @@
 import { t } from "../text.js";
+import { state } from "../document/state.js";
+import { dom } from "./dom.js";
+import { setStatus } from "./uiShared.js";
 
 // 转义文本，避免渲染搜索结果时插入不安全 HTML。
 function escapeHtml(text) {
@@ -11,7 +14,7 @@ function escapeHtml(text) {
 }
 
 // 创建全局搜索的 UI 绑定逻辑（输入、渲染、点击跳转）。
-export function createSearchBindings({ dom, search, setStatus }) {
+export function createSearchBindings() {
   let latestResults = [];
   let latestQuery = "";
   let searchTimer = null;
@@ -29,7 +32,8 @@ export function createSearchBindings({ dom, search, setStatus }) {
 
   // 根据输入关键词执行搜索并刷新结果列表。
   function renderResults(rawQuery) {
-    const query = search.normalizeSearchText(rawQuery);
+    if (!state.search) return;
+    const query = state.search.normalizeSearchText(rawQuery);
     latestQuery = query;
     if (!query) {
       latestResults = [];
@@ -39,7 +43,7 @@ export function createSearchBindings({ dom, search, setStatus }) {
       return;
     }
 
-    latestResults = search.searchPages(query);
+    latestResults = state.search.searchPages(query);
     setSearchVisibility(true);
     dom.globalSearchResultMeta.textContent = t("search.meta", { query, count: latestResults.length });
 
@@ -85,7 +89,7 @@ export function createSearchBindings({ dom, search, setStatus }) {
       if (e.key === "Enter") {
         e.preventDefault();
         if (!latestResults.length) return;
-        search.openSearchResult(latestResults[0]);
+        state.search.openSearchResult(latestResults[0]);
       }
     });
 
@@ -104,7 +108,7 @@ export function createSearchBindings({ dom, search, setStatus }) {
       if (!item) return;
       const index = Number(item.getAttribute("data-search-index"));
       if (!Number.isInteger(index) || index < 0 || index >= latestResults.length) return;
-      search.openSearchResult(latestResults[index]);
+      state.search.openSearchResult(latestResults[index]);
     });
   }
 

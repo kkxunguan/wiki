@@ -1,15 +1,13 @@
 import { t } from "../text.js";
+import { dom } from "./dom.js";
+import { state } from "../document/state.js";
+import { setStatus, showMenuInViewport } from "./uiShared.js";
 
 // 创建页面树相关的 UI 事件绑定器。
-export function createWikiBindings({
-  dom,
-  state,
-  wiki,
-  editor,
-  modes,
-  setStatus,
-  showMenuInViewport
-}) {
+export function createWikiBindings() {
+  const wiki = state.wiki;
+  const editor = state.editor;
+  const modes = state.modes;
   // 聚焦编辑器，可选择将光标置于末尾。
   function focusEditor(atEnd = false) {
     if (editor && typeof editor.focus === "function") {

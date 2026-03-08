@@ -17,5 +17,11 @@ export const state = {
   currentPage: "",
   selectedPage: "",
   autoSaveTimer: null,
-  editorAdapter: null
+  editorAdapter: null,
+  // 运行时服务引用（由 main 初始化后写入）。
+  wiki: null,
+  editor: null,
+  modes: null,
+  search: null,
+  searchBindings: null
 };

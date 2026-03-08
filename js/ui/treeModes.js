@@ -1,7 +1,9 @@
 import { t } from "../text.js";
+import { dom } from "./dom.js";
+import { state } from "../document/state.js";
 
 // 创建阅读/编辑模式与页面树/回收站视图模式管理器。
-export function createModes({ dom, editor }) {
+export function createModes() {
   const MODE_STORAGE_KEY = "wiki-mode-v1";
   const MODE_READ = "read";
   const MODE_EDIT = "edit";
@@ -39,7 +41,9 @@ export function createModes({ dom, editor }) {
   // 应用阅读/编辑模式到页面和编辑器。
   function applyMode() {
     document.body.classList.toggle("read-mode", isReadMode);
-    editor.setReadOnly(isReadMode);
+    if (state.editor && typeof state.editor.setReadOnly === "function") {
+      state.editor.setReadOnly(isReadMode);
+    }
     dom.modeToggleBtn.textContent = isReadMode ? t("mode.edit") : t("mode.read");
     saveModeToStorage();
   }

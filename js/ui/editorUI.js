@@ -17,7 +17,7 @@ function ensureHtml(input) {
 }
 
 // 创建编辑器适配层，统一 WangEditor 与降级编辑模式行为。
-export function createEditor({ saveCurrentPage, refreshSearchQuery }) {
+export function createEditor() {
   let readOnly = false;
   let suppressChange = false;
   let wangEditor = null;
@@ -26,15 +26,6 @@ export function createEditor({ saveCurrentPage, refreshSearchQuery }) {
   let pendingHtml = null;
   let pendingSetHtmlFrame = 0;
   let pendingSetHtmlRetry = 0;
-
-  // 检测 WangEditor 是否已正确加载到全局对象。
-  function hasWangEditor() {
-    return Boolean(
-      window.wangEditor
-      && typeof window.wangEditor.createEditor === "function"
-      && typeof window.wangEditor.createToolbar === "function"
-    );
-  }
 
   // 读取当前编辑器 HTML（优先 WangEditor）。
   function getHtml() {
@@ -148,10 +139,12 @@ export function createEditor({ saveCurrentPage, refreshSearchQuery }) {
   function queueAutoSave() {
     if (state.autoSaveTimer) clearTimeout(state.autoSaveTimer);
     state.autoSaveTimer = setTimeout(() => {
-      if (typeof saveCurrentPage !== "function") return;
-      const saved = saveCurrentPage(true);
+      if (!state.wiki || typeof state.wiki.saveCurrentPage !== "function") return;
+      const saved = state.wiki.saveCurrentPage(true);
       if (!saved) return;
-      if (typeof refreshSearchQuery === "function") refreshSearchQuery();
+      if (state.searchBindings && typeof state.searchBindings.refreshActiveQuery === "function") {
+        state.searchBindings.refreshActiveQuery();
+      }
     }, AUTO_SAVE_DELAY_MS);
   }
 
@@ -202,9 +195,7 @@ export function createEditor({ saveCurrentPage, refreshSearchQuery }) {
   }
 
   // 初始化 WangEditor 及工具栏，失败时由调用方决定降级策略。
-  function initWangEditor(initialHtml = "") {
-    if (!hasWangEditor() || !dom.editor || !dom.editorToolbar) return false;
-
+  function initWangEditor() {
     const E = window.wangEditor;
     try {
       wangReady = false;
@@ -212,7 +203,7 @@ export function createEditor({ saveCurrentPage, refreshSearchQuery }) {
       // 先创建编辑器实例，再创建工具栏并与实例绑定。
       wangEditor = E.createEditor({
         selector: "#editor",
-        html: ensureHtml(initialHtml),
+        html: "<p><br></p>",
         config: {
           placeholder: t("editor.emptyPlaceholder"),
           scroll: false,
@@ -381,8 +372,7 @@ export function createEditor({ saveCurrentPage, refreshSearchQuery }) {
     setHtml
   };
 
-  const bootHtml = ensureHtml(dom.editor && dom.editor.innerHTML);
-  const inited = initWangEditor(bootHtml);
+  const inited = initWangEditor();
   if (!inited) {
     setStatus(t("error.wangEditorLoadFailed"));
     initFallbackEditor();

@@ -1,4 +1,3 @@
-import { dom } from "./ui/dom.js";
 import {
   STORAGE_KEY,
   STORAGE_TRASH_KEY,
@@ -9,7 +8,7 @@ import {
 import { loadPages, savePages, loadJson, saveJson } from "./document/storage.js";
 import { createEditor } from "./ui/editorUI.js";
 import { createWiki } from "./document/wiki.js";
-import { setStatus, showMenuInViewport } from "./ui/uiShared.js";
+import { setStatus } from "./ui/uiShared.js";
 import { createModes } from "./ui/treeModes.js";
 import { createWikiBindings } from "./ui/treeUI.js";
 import { createSearch } from "./document/search.js";
@@ -57,38 +56,19 @@ function isLatestTrashShape(item) {
 async function init() {
   // 步骤 1：创建核心服务（Wiki 业务服务 + 编辑器）。
   wiki = createWiki();
+  state.wiki = wiki;
 
-  editor = createEditor({
-    saveCurrentPage: (silent = true) => wiki.saveCurrentPage(silent),
-    refreshSearchQuery: () => {
-      if (searchBindings && typeof searchBindings.refreshActiveQuery === "function") {
-        searchBindings.refreshActiveQuery();
-      }
-    }
-  });
+  editor = createEditor();
+  state.editor = editor;
 
   // 步骤 2：创建模式、树交互、搜索等 UI 绑定器。
-  const modes = createModes({ dom, editor });
-  const wikiBindings = createWikiBindings({
-    dom,
-    state,
-    wiki,
-    editor,
-    modes,
-    setStatus,
-    showMenuInViewport
-  });
-  const search = createSearch({
-    state,
-    wiki,
-    editor,
-    setStatus
-  });
-  searchBindings = createSearchBindings({
-    dom,
-    search,
-    setStatus
-  });
+  const modes = createModes();
+  state.modes = modes;
+  const wikiBindings = createWikiBindings();
+  const search = createSearch();
+  state.search = search;
+  searchBindings = createSearchBindings();
+  state.searchBindings = searchBindings;
 
   // 步骤 3：读取本地存储快照（页面、回收站、Schema 版本）。
   const rawPages = await loadPages(STORAGE_KEY);

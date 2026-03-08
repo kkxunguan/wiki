@@ -1,4 +1,6 @@
 import { t } from "../text.js";
+import { setStatus } from "../ui/uiShared.js";
+import { state } from "./state.js";
 
 // 转义文本中的 HTML 特殊字符，避免拼接结果片段时注入标签。
 function escapeHtml(text) {
@@ -88,7 +90,7 @@ function buildSnippetHtml(fullText, hitStart, hitLength, radius = 32) {
 }
 
 // 创建搜索服务：负责检索页面内容与跳转命中位置。
-export function createSearch({ state, wiki, editor, setStatus }) {
+export function createSearch() {
   // 扫描全部页面内容，返回匹配结果列表。
   function searchPages(rawQuery, options = {}) {
     const query = normalizeSearchText(rawQuery);
@@ -125,7 +127,8 @@ export function createSearch({ state, wiki, editor, setStatus }) {
 
   // 打开结果所在页面，并尝试定位到对应第 N 次命中处。
   function openSearchResult(result) {
-    const pageName = wiki.sanitizeName(result && result.pageName);
+    if (!state.wiki || !state.editor) return false;
+    const pageName = state.wiki.sanitizeName(result && result.pageName);
     const query = normalizeSearchText(result && result.query);
     if (!pageName || !query) return false;
     if (!state.pages[pageName]) {
@@ -134,12 +137,12 @@ export function createSearch({ state, wiki, editor, setStatus }) {
     }
     const occurrence = Math.max(0, Number(result.occurrence) || 0);
 
-    wiki.openPage(pageName);
+    state.wiki.openPage(pageName);
 
     requestAnimationFrame(() => {
       // 先尝试定位到指定 occurrence，失败则回退到第一个命中。
-      const jumped = editor.jumpToTextOccurrence(query, occurrence)
-        || editor.jumpToTextOccurrence(query, 0);
+      const jumped = state.editor.jumpToTextOccurrence(query, occurrence)
+        || state.editor.jumpToTextOccurrence(query, 0);
       if (jumped) {
         setStatus(t("status.searchJumped", { page: pageName }));
         return;
