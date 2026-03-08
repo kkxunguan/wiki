@@ -1,3 +1,4 @@
+// 文案字典：集中维护界面文本与模板字符串。
 const messages = {
   "common.separator": " / ",
 
@@ -46,7 +47,6 @@ const messages = {
   "status.currentPagePrefix": "当前页面：",
   "status.deletedPromoteChildren": "已删除页面并提升子页面：{name}",
   "status.hierarchyUpdated": "已更新层级：{path}",
-  "status.initFailed": "初始化失败，请刷新页面重试。",
   "status.loaded": "已加载",
   "status.movedDown": "已下移：{name}",
   "status.movedToTrash": "已移入回收站：{name}",
@@ -71,6 +71,7 @@ const messages = {
   "wiki.trashEmpty": "回收站为空"
 };
 
+// 用参数对象替换模板中的 {key} 占位符。
 function formatTemplate(template, params) {
   return String(template).replace(/\{(\w+)\}/g, (_, key) => {
     if (params && Object.prototype.hasOwnProperty.call(params, key)) {
@@ -81,6 +82,7 @@ function formatTemplate(template, params) {
   });
 }
 
+// 多语言取词入口：按 key 取模板并可选执行参数插值。
 export function t(key, params = null) {
   const template = Object.prototype.hasOwnProperty.call(messages, key) ? messages[key] : key;
   if (!params) return String(template);

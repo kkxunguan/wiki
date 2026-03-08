@@ -1,4 +1,5 @@
-﻿export const dom = {
+// 全局 DOM 引用表：统一缓存页面上会频繁使用的节点。
+export const dom = {
   editorWrap: document.getElementById("editorWrap"),
   editor: document.getElementById("editor"),
   editorToolbar: document.getElementById("editorToolbar"),

@@ -1,18 +1,22 @@
 import { t } from "../text.js";
 
+// 创建 Wiki 核心服务，封装页面树、回收站和编辑区的主要业务逻辑。
 export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewport, setStatus }) {
 
+  // 清理页面名输入，统一去掉首尾空格。
   function sanitizeName(name) {
     return (name || "").trim();
   }
 
   const PAGE_BG_DEFAULT = "";
+  // 校验 RGB 单通道值，必须是 0~255 的整数。
   function sanitizeRgbChannel(channel) {
     const n = Number(channel);
     if (!Number.isInteger(n) || n < 0 || n > 255) return null;
     return n;
   }
 
+  // 规范化页面背景色，仅允许 #RRGGBB 或 rgb(r,g,b)。
   function sanitizePageBackground(color) {
     const raw = String(color || "").trim();
     if (!raw) return PAGE_BG_DEFAULT;
@@ -31,12 +35,14 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return PAGE_BG_DEFAULT;
   }
 
+  // 将页面背景应用到编辑区容器。
   function applyEditorBackground(color) {
     if (!dom.editorWrap) return;
     const next = sanitizePageBackground(color);
     dom.editorWrap.style.background = next || "";
   }
 
+  // 转义字符串，避免文本直接进入 HTML 时产生注入。
   function escapeHtml(text) {
     return String(text || "")
       .replace(/&/g, "&amp;")
@@ -46,6 +52,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
       .replace(/'/g, "&#39;");
   }
 
+  // 过滤不安全标签与属性，生成可安全持久化的 HTML。
   function sanitizeHtml(inputHtml) {
     const template = document.createElement("template");
     template.innerHTML = String(inputHtml || "");
@@ -63,16 +70,19 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
 
     const elements = Array.from(template.content.querySelectorAll("*"));
     elements.forEach((el) => {
+      // 1) 先移除明确禁止的高风险标签。
       if (blockedTags.has(el.tagName)) {
         el.remove();
         return;
       }
 
+      // 2) 清掉仅用于编辑态的临时 class，避免污染持久化内容。
       if (el.classList && el.classList.length) {
         transientClasses.forEach((name) => el.classList.remove(name));
         if (!el.classList.length) el.removeAttribute("class");
       }
 
+      // 3) 清理危险属性：事件属性、srcdoc、javascript: URL。
       Array.from(el.attributes).forEach((attr) => {
         const attrName = attr.name.toLowerCase();
         const attrValue = String(attr.value || "").trim();
@@ -90,6 +100,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return template.innerHTML.trim() ? template.innerHTML : "<p></p>";
   }
 
+  // 获取编辑器适配器（统一富文本编辑器与降级模式接口）。
   function getEditorAdapter() {
     const adapter = state.editorAdapter;
     if (!adapter) return null;
@@ -98,6 +109,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return adapter;
   }
 
+  // 从编辑器读取当前 HTML。
   function readEditorHtml() {
     const adapter = getEditorAdapter();
     if (adapter) return String(adapter.getHtml() || "");
@@ -105,6 +117,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return String(dom.editor.innerHTML || "");
   }
 
+  // 写入 HTML 到编辑器，并先做安全清洗。
   function writeEditorHtml(html) {
     const safeHtml = sanitizeHtml(html);
     const adapter = getEditorAdapter();
@@ -115,19 +128,23 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     if (dom.editor) dom.editor.innerHTML = safeHtml;
   }
 
+  // 持久化当前页面树数据。
   function persistPages() {
     savePages(state.pages);
   }
 
+  // 持久化当前回收站数据（可选注入）。
   function persistTrash() {
     if (typeof saveTrash === "function") saveTrash(state.trash);
   }
 
+  // 规范化页面数据结构并修正非法父子关系。
   function normalizePages(source) {
     const out = {};
     const siblingCursor = { __root__: 0 };
     Object.keys(source || {}).forEach((name) => {
       const page = source[name] || {};
+      // 对旧数据做兼容：优先 sortKey，其次 order，最后按遍历顺序兜底。
       const parentKey = page.parent || "__root__";
       const fallbackOrder = siblingCursor[parentKey] || 0;
       const normalizedSortKey = Number.isFinite(Number(page.sortKey))
@@ -143,6 +160,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
         order: normalizedSortKey
       };
     });
+    // 修正异常 parent：指向自己或不存在节点时降级为根节点。
     Object.keys(out).forEach((name) => {
       const p = out[name].parent;
       if (p === name || (p && !out[p])) out[name].parent = null;
@@ -151,6 +169,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return out;
   }
 
+  // 规范化回收站数据结构，补齐恢复所需字段。
   function normalizeTrash(source) {
     const out = {};
     Object.keys(source || {}).forEach((name) => {
@@ -173,14 +192,18 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return out;
   }
 
+  // 构建 parent->children 映射，并按 sortKey 排序。
   function getChildrenMap() {
     const map = { __root__: [] };
+    // 先为每个页面预建 children 数组，保证后续 push 安全。
     Object.keys(state.pages).forEach((name) => { map[name] = []; });
+    // 构建父子关系；父不存在时归入根节点集合。
     Object.keys(state.pages).forEach((name) => {
       const p = state.pages[name].parent;
       if (p && state.pages[p]) map[p].push(name);
       else map.__root__.push(name);
     });
+    // 每组兄弟节点按 sortKey、再按名称排序，保证渲染稳定。
     Object.keys(map).forEach((k) => map[k].sort((a, b) => {
       const pageA = state.pages[a];
       const pageB = state.pages[b];
@@ -199,6 +222,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return map;
   }
 
+  // 统一修正页面的 sortKey/order 字段，保证排序字段可用。
   function normalizeAllSiblingOrders(pages = state.pages) {
     Object.keys(pages).forEach((name) => {
       const page = pages[name];
@@ -211,6 +235,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     });
   }
 
+  // 计算给定父节点下下一个可用排序值。
   function nextSortKeyForParent(parent) {
     const parentKey = parent || null;
     let maxSortKey = -1;
@@ -225,6 +250,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return maxSortKey + 1;
   }
 
+  // 判断 candidateParent 是否为 nodeName 的后代（用于防环）。
   function isDescendant(candidateParent, nodeName) {
     if (!candidateParent || !nodeName || !state.pages[candidateParent] || !state.pages[nodeName]) return false;
     let p = candidateParent;
@@ -237,6 +263,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return false;
   }
 
+  // 生成页面树路径文本（祖先 / 当前页）。
   function buildPagePath(name) {
     if (!state.pages[name]) return name;
     const segs = [name];
@@ -250,12 +277,14 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return segs.join(" / ");
   }
 
+  // 生成回收站项路径，尽量还原其原始层级上下文。
   function buildTrashPath(name) {
     if (!state.trash[name]) return name;
     const segs = [name];
     const seen = new Set([name]);
     let parent = state.trash[name].parent;
 
+    // 先沿回收站内 parent 链回溯；若断链再尝试拼接在 pages 中仍存在的祖先。
     while (parent && !seen.has(parent)) {
       seen.add(parent);
       segs.unshift(parent);
@@ -278,10 +307,12 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return segs.join(" / ");
   }
 
+  // 统一格式化保存时间（24 小时制）。
   function formatSaveTime(date = new Date()) {
     return date.toLocaleTimeString("zh-CN", { hour12: false });
   }
 
+  // 当前是否使用编辑器适配器模式（而不是原生 contenteditable）。
   function isAdapterEditorMode() {
     const adapter = state.editorAdapter;
     return Boolean(
@@ -291,6 +322,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     );
   }
 
+  // 记录当前编辑选区，用于保存后尽量恢复光标位置。
   function captureEditorSelectionSnapshot() {
     if (isAdapterEditorMode()) return null;
     if (!dom.editor) return null;
@@ -301,6 +333,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return range.cloneRange();
   }
 
+  // 恢复之前捕获的选区，避免保存后光标丢失。
   function restoreEditorSelectionSnapshot(rangeSnapshot, shouldFocus = false) {
     if (isAdapterEditorMode()) return;
     if (!rangeSnapshot || !dom.editor) return;
@@ -315,9 +348,11 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     } catch {}
   }
 
+  // 按页面树层级渲染左侧页面列表。
   function renderPageList() {
     const map = getChildrenMap();
     dom.pageList.innerHTML = "";
+    // 递归渲染：每深入一层增加缩进，并附带当前页/选中态。
     const append = (name, depth) => {
       const page = state.pages[name];
       if (!page) return;
@@ -341,11 +376,13 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
       item.appendChild(metaEl);
       item.addEventListener("click", () => openPage(name));
       dom.pageList.appendChild(item);
+      // 深度优先渲染子节点，保持树结构可视化。
       (map[name] || []).forEach((child) => append(child, depth + 1));
     };
     (map.__root__ || []).forEach((root) => append(root, 0));
   }
 
+  // 渲染回收站列表，并按删除时间/层级排序展示。
   function renderTrashList() {
     if (!dom.trashList) return;
     dom.trashList.innerHTML = "";
@@ -357,6 +394,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     names
       .map((name) => ({ name, ...state.trash[name] }))
       .sort((a, b) => {
+        // 先按删除时间倒序，再按 root/depth/sortKey 保持同树结构顺序。
         const ad = new Date(a.deletedAt || 0).getTime();
         const bd = new Date(b.deletedAt || 0).getTime();
         if (ad !== bd) return bd - ad;
@@ -384,6 +422,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
       });
   }
 
+  // 创建页面并插入到指定父节点下。
   function createPage(name, content = "<p></p>", parent = null) {
     const clean = sanitizeName(name);
     if (!clean) return setStatus(t("error.pageNameRequired")), false;
@@ -404,6 +443,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return true;
   }
 
+  // 自动生成不冲突的页面名称（如 页面1、页面2）。
   function buildAutoPageName(prefix = t("page.defaultPrefix")) {
     const base = sanitizeName(prefix) || t("page.defaultPrefix");
     let index = 1;
@@ -411,18 +451,23 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return `${base}${index}`;
   }
 
+  // 创建一页默认模板内容的新页面，返回实际名称。
   function createAutoPage(parent = null, prefix = t("page.defaultPrefix")) {
     const name = buildAutoPageName(prefix);
     const ok = createPage(name, `<h1>${escapeHtml(name)}</h1><p><br></p>`, parent);
     return ok ? name : "";
   }
 
+  // 打开页面：必要时自动创建、加载内容并刷新选中状态。
   function openPage(name) {
     const clean = sanitizeName(name);
+    // 从回收站预览态切回正常页面态。
     state.trashPreviewName = "";
+    // 切页前先静默保存当前页，避免编辑丢失。
     if (state.currentPage && clean !== state.currentPage) {
       saveCurrentPage(true);
     }
+    // 允许“输入即打开”：若页面不存在则按当前页创建子页。
     if (!state.pages[clean]) {
       const created = createPage(clean, t("content.newPage", { title: escapeHtml(clean) }), state.currentPage || null);
       if (!created) return;
@@ -436,6 +481,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     setStatus(t("status.currentPage", { path: buildPagePath(clean) }));
   }
 
+  // 预览回收站页面（只读），切换编辑区显示内容。
   function previewTrashPage(name) {
     const clean = sanitizeName(name);
     if (!clean || !state.trash[clean]) return false;
@@ -455,6 +501,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return true;
   }
 
+  // 保存当前页面内容，支持静默模式（自动保存）。
   function saveCurrentPage(silent = false) {
     if (state.trashPreviewName) {
       if (!silent) setStatus(t("error.trashPreviewReadOnlySave"));
@@ -464,6 +511,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
       if (!silent) setStatus(t("error.openOrCreateFirst"));
       return false;
     }
+    // 保存前快照选区，保存后尽量恢复用户编辑位置。
     const hadEditorFocus = document.activeElement === dom.editor;
     const selectionSnapshot = captureEditorSelectionSnapshot();
     const oldName = state.currentPage;
@@ -482,6 +530,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return true;
   }
 
+  // 移动页面到新父节点下，并自动分配排序值。
   function movePage(name, targetParent) {
     const cleanName = sanitizeName(name);
     if (!cleanName || !state.pages[cleanName]) return false;
@@ -500,6 +549,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return true;
   }
 
+  // 重命名页面，并同步修正子页面 parent 指向。
   function renamePage(name, newName) {
     const oldName = sanitizeName(name);
     const nextName = sanitizeName(newName);
@@ -523,6 +573,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return true;
   }
 
+  // 收集某页面整棵子树（BFS），用于整树删除/恢复。
   function collectSubtree(rootName) {
     const list = [];
     const queue = [{ name: rootName, depth: 0 }];
@@ -537,6 +588,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return list;
   }
 
+  // 生成恢复时不冲突的新页面名。
   function uniqueRestoredName(baseName, used) {
     let name = sanitizeName(baseName) || t("page.unnamed");
     if (!used.has(name) && !state.pages[name]) return name;
@@ -546,15 +598,18 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return `${name}(${restoreSuffix}${idx > 1 ? idx : ""})`;
   }
 
+  // 恢复回收站中同一 root 的整棵页面子树。
   function restoreTrashRoot(rootName) {
     const root = sanitizeName(rootName);
     if (!root) return false;
+    // 取出同一 root 的整棵子树，并按深度优先恢复（父节点先恢复）。
     const nodes = Object.keys(state.trash)
       .filter((n) => (state.trash[n].root || n) === root)
       .map((n) => ({ oldName: n, ...state.trash[n] }))
       .sort((a, b) => a.depth - b.depth || ((a.sortKey ?? a.order) - (b.sortKey ?? b.order)));
     if (!nodes.length) return false;
 
+    // 为每个节点分配不冲突的新名称，并建立旧名到新名映射。
     const used = new Set();
     const nameMap = {};
     nodes.forEach((node) => {
@@ -563,6 +618,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
       nameMap[node.oldName] = next;
     });
 
+    // 按映射重建页面节点，父节点优先关联恢复后的名称。
     nodes.forEach((node) => {
       const newName = nameMap[node.oldName];
       const parent = node.parent;
@@ -578,6 +634,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
       };
     });
 
+    // 清理回收站源数据并刷新 UI。
     nodes.forEach((node) => { delete state.trash[node.oldName]; });
     normalizeAllSiblingOrders(state.pages);
     persistPages();
@@ -589,6 +646,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return true;
   }
 
+  // 彻底清除回收站中同一 root 的所有节点。
   function purgeTrashRoot(rootName) {
     const root = sanitizeName(rootName);
     if (!root) return false;
@@ -602,11 +660,13 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return true;
   }
 
+  // 删除页面及其全部子页面，并整体移入回收站。
   function deletePageByName(name) {
     const clean = sanitizeName(name);
     if (!clean || !state.pages[clean]) return false;
 
     const subtree = collectSubtree(clean);
+    // 先将整棵子树镜像写入回收站，再删除原页面，保证可恢复。
     subtree.forEach(({ name: pageName, depth }) => {
       const page = state.pages[pageName];
       state.trash[pageName] = {
@@ -626,6 +686,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
       };
     });
 
+    // 再从 pages 中删除，并重建列表状态。
     subtree.forEach(({ name: pageName }) => { delete state.pages[pageName]; });
     if (subtree.some((n) => n.name === state.selectedPage)) state.selectedPage = "";
     normalizeAllSiblingOrders(state.pages);
@@ -634,6 +695,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     renderPageList();
     renderTrashList();
 
+    // 保证至少存在一个可用页面，并避免 currentPage 指向已删节点。
     if (!Object.keys(state.pages).length) createPage(t("page.home"), t("content.newWiki"), null);
     if (subtree.some((n) => n.name === state.currentPage)) openPage(Object.keys(state.pages)[0]);
 
@@ -641,6 +703,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return true;
   }
 
+  // 仅删除当前页面，直接子页面提升到当前页父级下。
   function deletePageKeepChildrenByName(name) {
     const clean = sanitizeName(name);
     if (!clean || !state.pages[clean]) return false;
@@ -656,6 +719,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
         return a.localeCompare(b, "zh-CN");
       });
 
+    // 先提升直接子节点到被删节点的父级下，保持子树仍可访问。
     directChildren.forEach((childName) => {
       state.pages[childName].parent = parent;
       const nextSortKey = nextSortKeyForParent(parent);
@@ -663,6 +727,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
       state.pages[childName].order = nextSortKey;
     });
 
+    // 仅将当前节点放入回收站（不含其子节点）。
     state.trash[clean] = {
       title: current.title || clean,
       content: current.content || "<p></p>",
@@ -679,6 +744,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
       deletedAt: new Date().toISOString()
     };
 
+    // 删除当前节点并刷新状态。
     delete state.pages[clean];
     if (state.selectedPage === clean) state.selectedPage = "";
 
@@ -688,6 +754,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     renderPageList();
     renderTrashList();
 
+    // 当前页被删时，优先打开提升后的子页，其次父页，再次任意页。
     if (!Object.keys(state.pages).length) createPage(t("page.home"), t("content.newWiki"), null);
     if (state.currentPage === clean) {
       const openCandidate = directChildren.find((n) => state.pages[n])
@@ -699,6 +766,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return true;
   }
 
+  // 获取同父级下兄弟页面列表（按排序值升序）。
   function getSiblingNames(parent) {
     const parentKey = parent || null;
     return Object.keys(state.pages)
@@ -711,6 +779,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
       });
   }
 
+  // 在同级内上移/下移页面（交换排序值）。
   function movePageSort(name, direction = "up") {
     const clean = sanitizeName(name);
     if (!clean || !state.pages[clean]) return false;
@@ -726,6 +795,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
       return false;
     }
 
+    // 通过交换 sortKey 实现同级上移/下移。
     const targetName = siblings[targetIdx];
     const currentSort = Number(state.pages[clean].sortKey ?? state.pages[clean].order) || 0;
     const targetSort = Number(state.pages[targetName].sortKey ?? state.pages[targetName].order) || 0;
@@ -740,6 +810,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return true;
   }
 
+  // 手动设置页面排序值并立即重渲染列表。
   function setPageSortKey(name, rawValue) {
     const clean = sanitizeName(name);
     if (!clean || !state.pages[clean]) return false;
@@ -756,8 +827,10 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     return true;
   }
 
+  // 绑定回收站点击/右键菜单的交互行为。
   function bindTrashActions() {
     if (!dom.trashList) return;
+    // 单击回收站项：加载该项内容到编辑区做预览。
     dom.trashList.addEventListener("click", (e) => {
       const item = e.target.closest("[data-trash-name]");
       if (!item) return;
@@ -765,6 +838,7 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
       previewTrashPage(name);
     });
 
+    // 右键回收站根节点：弹出“恢复/彻底删除”菜单。
     dom.trashList.addEventListener("contextmenu", (e) => {
       const item = e.target.closest("[data-trash-root]");
       if (!item) return;
@@ -807,4 +881,3 @@ export function createWiki({ dom, state, savePages, saveTrash, showMenuInViewpor
     bindTrashActions
   };
 }
-

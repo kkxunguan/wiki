@@ -1,5 +1,6 @@
 import { t } from "../text.js";
 
+// 转义文本，避免渲染搜索结果时插入不安全 HTML。
 function escapeHtml(text) {
   return String(text || "")
     .replace(/&/g, "&amp;")
@@ -9,20 +10,24 @@ function escapeHtml(text) {
     .replace(/'/g, "&#39;");
 }
 
+// 创建全局搜索的 UI 绑定逻辑（输入、渲染、点击跳转）。
 export function createSearchBindings({ dom, search, setStatus }) {
   let latestResults = [];
   let latestQuery = "";
   let searchTimer = null;
 
+  // 控制搜索结果区域与统计信息显隐。
   function setSearchVisibility(visible) {
     dom.globalSearchResultMeta.classList.toggle("hidden", !visible);
     dom.globalSearchResults.classList.toggle("hidden", !visible);
   }
 
+  // 渲染“无结果”占位内容。
   function renderEmptyState(text) {
     dom.globalSearchResults.innerHTML = `<div class="search-result-empty">${escapeHtml(text)}</div>`;
   }
 
+  // 根据输入关键词执行搜索并刷新结果列表。
   function renderResults(rawQuery) {
     const query = search.normalizeSearchText(rawQuery);
     latestQuery = query;
@@ -57,6 +62,7 @@ export function createSearchBindings({ dom, search, setStatus }) {
     });
   }
 
+  // 防抖调度搜索渲染，降低输入过程重算频率。
   function scheduleRender() {
     if (searchTimer) clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
@@ -65,6 +71,7 @@ export function createSearchBindings({ dom, search, setStatus }) {
     }, 80);
   }
 
+  // 绑定搜索输入框与清空按钮行为。
   function bindInput() {
     dom.globalSearchInput.addEventListener("input", scheduleRender);
 
@@ -90,6 +97,7 @@ export function createSearchBindings({ dom, search, setStatus }) {
     });
   }
 
+  // 绑定结果列表点击事件，打开对应页面命中。
   function bindResultClicks() {
     dom.globalSearchResults.addEventListener("click", (e) => {
       const item = e.target.closest("[data-search-index]");
@@ -100,6 +108,7 @@ export function createSearchBindings({ dom, search, setStatus }) {
     });
   }
 
+  // 监听编辑器内容变化，在有查询词时自动刷新结果。
   function bindEditorRefresh() {
     if (dom.editor) {
       dom.editor.addEventListener("input", () => {
@@ -113,11 +122,13 @@ export function createSearchBindings({ dom, search, setStatus }) {
     });
   }
 
+  // 外部触发：按当前关键词刷新结果。
   function refreshActiveQuery() {
     if (!latestQuery) return;
     scheduleRender();
   }
 
+  // 一次性绑定搜索相关全部事件并初始化视图。
   function bindAll() {
     bindInput();
     bindResultClicks();

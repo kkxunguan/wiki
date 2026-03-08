@@ -17,14 +17,19 @@ import { createSearch } from "./document/search.js";
 import { createSearchBindings } from "./ui/searchUI.js";
 import { t } from "./text.js";
 
+// Wiki 业务服务实例（初始化后赋值）。
 let wiki;
+// 编辑器服务实例（初始化后赋值）。
 let editor;
+// 搜索 UI 绑定实例（初始化后赋值）。
 let searchBindings;
 
+// 判断值是否为普通对象（排除 null 与数组）。
 function isObjectRecord(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+// 判断页面对象是否已经是当前版本所需的数据结构。
 function isLatestPageShape(page) {
   if (!isObjectRecord(page)) return false;
   if (typeof page.title !== "string") return false;
@@ -35,6 +40,7 @@ function isLatestPageShape(page) {
   return true;
 }
 
+// 判断回收站对象是否已经是当前版本所需的数据结构。
 function isLatestTrashShape(item) {
   if (!isObjectRecord(item)) return false;
   if (typeof item.title !== "string") return false;
@@ -48,7 +54,9 @@ function isLatestTrashShape(item) {
   return true;
 }
 
+// 创建自动保存调度器（防抖），用于编辑内容变更时触发保存。
 function createQueueAutoSave() {
+  // 延迟保存当前页面，并在保存成功后刷新搜索结果。
   return function queueAutoSave() {
     if (state.autoSaveTimer) clearTimeout(state.autoSaveTimer);
     state.autoSaveTimer = setTimeout(() => {
@@ -61,6 +69,7 @@ function createQueueAutoSave() {
   };
 }
 
+// 应用初始化入口：组装模块、加载数据、迁移结构并完成首屏渲染。
 async function init() {
   const setStatus = (text) => setStatusText(dom, text);
   const queueAutoSave = createQueueAutoSave();
@@ -143,7 +152,4 @@ async function init() {
   setStatus(t("status.loaded"));
 }
 
-init().catch((err) => {
-  console.error(err);
-  setStatusText(dom, t("status.initFailed"));
-});
+init()

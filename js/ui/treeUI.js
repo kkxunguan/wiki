@@ -1,5 +1,6 @@
 import { t } from "../text.js";
 
+// 创建页面树相关的 UI 事件绑定器。
 export function createWikiBindings({
   dom,
   state,
@@ -9,6 +10,7 @@ export function createWikiBindings({
   setStatus,
   showMenuInViewport
 }) {
+  // 聚焦编辑器，可选择将光标置于末尾。
   function focusEditor(atEnd = false) {
     if (editor && typeof editor.focus === "function") {
       editor.focus(atEnd);
@@ -19,6 +21,7 @@ export function createWikiBindings({
     }
   }
 
+  // 绑定顶层操作按钮：新建页、模式切换、页面/回收站切换。
   function bindWikiActions() {
     dom.trashList.addEventListener("click", (e) => {
       if (!e.target.closest("[data-trash-name]")) return;
@@ -55,6 +58,7 @@ export function createWikiBindings({
     });
   }
 
+  // 绑定页面树右键菜单、重命名和相关点击行为。
   function bindPageTreeContextMenu() {
     let renamingPage = "";
     let renameInputEl = null;
@@ -64,15 +68,19 @@ export function createWikiBindings({
     let lastClickPage = "";
     let lastClickAt = 0;
 
+    // 在指定坐标显示页面菜单，并记录目标页面名。
     const showMenu = (x, y, pageName) => {
       dom.pageItemMenu.dataset.page = pageName;
       showMenuInViewport(dom.pageItemMenu, x, y);
     };
 
+    // 读取右键菜单当前对应的页面名。
     const getTargetPage = () => wiki.sanitizeName(dom.pageItemMenu.dataset.page);
+    // 在树列表中查找对应页面节点元素。
     const findPageItemEl = (pageName) => Array.from(dom.pageList.querySelectorAll(".page-item"))
       .find((el) => wiki.sanitizeName(el.dataset.page) === pageName);
 
+    // 清除编辑器选区与光标，避免树节点操作与编辑区冲突。
     const clearEditorCaret = () => {
       const selection = window.getSelection();
       if (selection && selection.rangeCount > 0) {
@@ -86,6 +94,7 @@ export function createWikiBindings({
       }
     };
 
+    // 关闭重命名输入框并恢复节点原始显示。
     const hideRenameInput = () => {
       if (renameInputEl && renameInputEl.parentNode) renameInputEl.remove();
       if (renamingNameSpan) renamingNameSpan.style.visibility = "";
@@ -100,6 +109,7 @@ export function createWikiBindings({
       renamingPage = "";
     };
 
+    // 提交重命名结果并在成功后打开新页面名。
     const commitRename = () => {
       if (!renameInputEl) return;
       const oldName = renamingPage;
@@ -111,6 +121,7 @@ export function createWikiBindings({
       wiki.openPage(nextName);
     };
 
+    // 在指定页面节点上展示内联重命名输入框。
     const showRenameInput = (pageName) => {
       const cleanName = wiki.sanitizeName(pageName);
       if (!cleanName || !state.pages[cleanName]) return;
@@ -183,6 +194,7 @@ export function createWikiBindings({
       const item = e.target.closest(".page-item");
       if (!item) return;
       e.preventDefault();
+      // 右键时同步选中该节点，确保菜单操作对象明确。
       const pageName = wiki.sanitizeName(item.dataset.page);
       if (pageName) {
         state.selectedPage = pageName;
@@ -201,6 +213,7 @@ export function createWikiBindings({
         if (pageName) {
           state.selectedPage = pageName;
           const now = Date.now();
+          // 双击触发内联重命名；单击仅更新选中态。
           if (lastClickPage === pageName && now - lastClickAt <= 320) {
             requestAnimationFrame(() => showRenameInput(pageName));
             lastClickPage = "";
@@ -227,6 +240,7 @@ export function createWikiBindings({
       if (e.target.closest(".page-item")) return;
       if (e.target.closest("#pageItemMenu")) return;
       if (e.target.closest(".page-rename-input")) return;
+      // 点击树区域外时清空选中态，避免误操作。
       hideRenameInput();
       state.selectedPage = "";
       wiki.renderPageList();
@@ -303,10 +317,13 @@ export function createWikiBindings({
     });
   }
 
+  // 绑定页面树拖拽逻辑，用于调整页面父子层级。
   function bindPageTreeDragDrop() {
     let draggingPage = "";
+    // 判断当前是否处于重命名态，重命名时禁用拖拽。
     const isRenamingPage = () => Boolean(dom.pageList.querySelector(".page-item.renaming"));
 
+    // 清除拖拽高亮状态。
     function clearDragMarks(includeDragging = false) {
       const selector = includeDragging
         ? ".page-item.drag-over, .page-item.dragging"
@@ -322,6 +339,7 @@ export function createWikiBindings({
       }
       const item = e.target.closest(".page-item");
       if (!item) return;
+      // 记录拖拽源页面名，后续 drop 用于执行 movePage。
       draggingPage = item.dataset.page || "";
       item.classList.add("dragging");
       if (e.dataTransfer) {
@@ -340,6 +358,7 @@ export function createWikiBindings({
       const item = e.target.closest(".page-item");
       if (!item) return;
       e.preventDefault();
+      // 拖拽悬停时仅给目标节点高亮，不直接修改数据。
       clearDragMarks();
       item.classList.add("drag-over");
       if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
@@ -356,11 +375,13 @@ export function createWikiBindings({
       const targetPage = item.dataset.page || "";
       clearDragMarks();
       if (!targetPage || draggingPage === targetPage) return;
+      // drop 时将拖拽源挂到目标节点下，形成新的父子关系。
       wiki.movePage(draggingPage, targetPage);
       if (state.currentPage === draggingPage) wiki.openPage(draggingPage);
     });
   }
 
+  // 统一绑定页面树相关全部事件。
   function bindAll() {
     bindWikiActions();
     bindPageTreeContextMenu();

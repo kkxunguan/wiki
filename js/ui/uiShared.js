@@ -1,5 +1,6 @@
 import { t } from "../text.js";
 
+// 从状态文本中拆出“路径 + 时间”，供状态栏统一解析。
 function parsePathAndTime(content, prefix) {
   if (!content.startsWith(prefix)) return null;
   const body = content.slice(prefix.length).trim();
@@ -12,6 +13,7 @@ function parsePathAndTime(content, prefix) {
   };
 }
 
+// 统一设置状态显示：根据文本前缀决定写入路径栏还是状态栏。
 export function setStatus(dom, text) {
   const content = String(text || "");
 
@@ -40,6 +42,7 @@ export function setStatus(dom, text) {
   dom.statusEl.textContent = content;
 }
 
+// 在视口范围内显示右键菜单，避免菜单超出屏幕。
 export function showMenuInViewport(menuEl, clientX, clientY) {
   if (!menuEl) return;
   const margin = 8;
