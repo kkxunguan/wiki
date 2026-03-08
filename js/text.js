@@ -8,7 +8,7 @@ const messages = {
   "content.usage": "<h1>使用说明</h1><p>支持页面树、内链和图片粘贴。</p>",
 
   "counter.words": "{count} 字",
-  "editor.emptyPlaceholder": "输入 [[页面名]] 可创建 Wiki 内链",
+  "editor.emptyPlaceholder": "请输入",
 
   "error.cannotCreateInTrashView": "回收站视图下不可新建页面",
   "error.moveToDescendant": "不能移动到自己的子孙页面",

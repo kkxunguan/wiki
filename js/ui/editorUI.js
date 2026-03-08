@@ -156,32 +156,6 @@ export function createEditor() {
     document.dispatchEvent(new CustomEvent("editor:content-change"));
   }
 
-  // 销毁 WangEditor 实例与工具栏，并清空挂载容器。
-  function destroyWangEditor() {
-    wangReady = false;
-    pendingHtml = null;
-    pendingSetHtmlRetry = 0;
-    if (pendingSetHtmlFrame) {
-      cancelAnimationFrame(pendingSetHtmlFrame);
-      pendingSetHtmlFrame = 0;
-    }
-
-    if (wangToolbar && typeof wangToolbar.destroy === "function") {
-      try {
-        wangToolbar.destroy();
-      } catch {}
-    }
-    if (wangEditor && typeof wangEditor.destroy === "function") {
-      try {
-        wangEditor.destroy();
-      } catch {}
-    }
-    wangToolbar = null;
-    wangEditor = null;
-    if (dom.editorToolbar) dom.editorToolbar.innerHTML = "";
-    if (dom.editor) dom.editor.innerHTML = "";
-  }
-
   // 应用只读状态到当前编辑器实现。
   function applyReadOnlyState() {
     if (!wangEditor) {
@@ -197,57 +171,42 @@ export function createEditor() {
   // 初始化 WangEditor 及工具栏，失败时由调用方决定降级策略。
   function initWangEditor() {
     const E = window.wangEditor;
-    try {
-      wangReady = false;
+    wangReady = false;
 
-      // 先创建编辑器实例，再创建工具栏并与实例绑定。
-      wangEditor = E.createEditor({
-        selector: "#editor",
-        html: "<p><br></p>",
-        config: {
-          placeholder: t("editor.emptyPlaceholder"),
-          scroll: false,
-          onChange: () => notifyContentChanged(),
-          MENU_CONF: {
-            uploadImage: {
-              base64LimitSize: 10 * 1024 * 1024
-            }
+    // 先创建编辑器实例，再创建工具栏并与实例绑定。
+    wangEditor = E.createEditor({
+      selector: "#editor",
+      html: "<p><br></p>",
+      config: {
+        placeholder: t("editor.emptyPlaceholder"),
+        scroll: false,
+        onChange: () => notifyContentChanged(),
+        MENU_CONF: {
+          uploadImage: {
+            base64LimitSize: 10 * 1024 * 1024
           }
         }
-      });
+      }
+    });
 
-      wangToolbar = E.createToolbar({
-        editor: wangEditor,
-        selector: "#editorToolbar",
-        config: {
-          excludeKeys: ["fullScreen"]
-        }
-      });
+    wangToolbar = E.createToolbar({
+      editor: wangEditor,
+      selector: "#editorToolbar",
+      config: {
+        excludeKeys: ["fullScreen"]
+      }
+    });
 
-      applyReadOnlyState();
-      updateCounter();
-      requestAnimationFrame(() => {
-        if (!wangEditor) return;
-        // 下一帧再标记 ready，确保初次渲染完成后再消费 pendingHtml。
-        wangReady = true;
-        if (pendingHtml !== null && !pendingSetHtmlFrame) {
-          pendingSetHtmlFrame = requestAnimationFrame(flushPendingSetHtml);
-        }
-      });
-      return true;
-    } catch (err) {
-      console.error(err);
-      destroyWangEditor();
-      return false;
-    }
-  }
-
-  // 初始化降级编辑器（原生 contenteditable）。
-  function initFallbackEditor() {
-    if (!dom.editor) return;
-    dom.editor.setAttribute("contenteditable", readOnly ? "false" : "true");
-    dom.editor.addEventListener("input", () => notifyContentChanged());
+    applyReadOnlyState();
     updateCounter();
+    requestAnimationFrame(() => {
+      if (!wangEditor) return;
+      // 下一帧再标记 ready，确保初次渲染完成后再消费 pendingHtml。
+      wangReady = true;
+      if (pendingHtml !== null && !pendingSetHtmlFrame) {
+        pendingSetHtmlFrame = requestAnimationFrame(flushPendingSetHtml);
+      }
+    });
   }
 
   // 设置编辑器只读状态。
@@ -372,11 +331,7 @@ export function createEditor() {
     setHtml
   };
 
-  const inited = initWangEditor();
-  if (!inited) {
-    setStatus(t("error.wangEditorLoadFailed"));
-    initFallbackEditor();
-  }
+  initWangEditor();
 
   return {
     focus,
