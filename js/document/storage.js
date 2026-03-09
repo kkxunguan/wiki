@@ -52,46 +52,29 @@ async function idbSet(key, value) {
 // 构建首次启动时的默认页面数据。
 function defaultPages() {
   const home = t("page.home");
-  const usage = t("page.usage");
   return {
-    [home]: { title: home, content: t("content.homeWelcome"), parent: null },
-    [usage]: { title: usage, content: t("content.usage"), parent: home }
+    [home]: { title: home, content: t("content.homeWelcome"), parent: null }
   };
 }
 
-// 读取 JSON 数据：优先 IndexedDB，回退 localStorage，最终回退默认值。
+// 读取 JSON 数据：仅使用 IndexedDB，不存在或解析失败时返回默认值。
 export async function loadJson(storageKey, fallbackValue) {
   try {
-    const fromDb = await idbGet(storageKey);
-    if (fromDb) return JSON.parse(fromDb);
-
-    const fromLocal = localStorage.getItem(storageKey);
-    if (fromLocal) {
-      await idbSet(storageKey, fromLocal);
-      return JSON.parse(fromLocal);
-    }
+    const raw = await idbGet(storageKey);
+    if (!raw) return fallbackValue;
+    return JSON.parse(raw);
   } catch {
-    const raw = localStorage.getItem(storageKey);
-    if (raw) {
-      try {
-        return JSON.parse(raw);
-      } catch {}
-    }
+    return fallbackValue;
   }
-  return fallbackValue;
 }
 
-// 保存 JSON 数据：优先写 IndexedDB，失败时回退 localStorage。
+// 保存 JSON 数据：仅写入 IndexedDB。
 export function saveJson(storageKey, value) {
   const raw = JSON.stringify(value);
-  idbSet(storageKey, raw).catch(() => {
-    try {
-      localStorage.setItem(storageKey, raw);
-    } catch {}
-  });
+  idbSet(storageKey, raw).catch(() => {});
 }
 
-// 读取页面数据，不存在时返回默认首页/说明页。
+// 读取页面数据，不存在时返回默认首页。
 export async function loadPages(storageKey) {
   return loadJson(storageKey, defaultPages());
 }

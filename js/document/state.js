@@ -4,8 +4,6 @@ export const STORAGE_KEY = "wiki-pages-v3";
 export const STORAGE_TRASH_KEY = "wiki-trash-v1";
 // 存储结构版本号持久化键。
 export const STORAGE_SCHEMA_KEY = "wiki-storage-schema-version";
-// 当前存储结构版本，用于迁移判断。
-export const STORAGE_SCHEMA_VERSION = 3;
 // 自动保存延迟时间（毫秒）。
 export const AUTO_SAVE_DELAY_MS = 1200;
 
@@ -16,7 +14,6 @@ export const state = {
   trashPreviewName: "",
   currentPage: "",
   selectedPage: "",
-  isReadMode: false,
   autoSaveTimer: null,
   editorAdapter: null,
   // 运行时服务引用（由 main 初始化后写入）。

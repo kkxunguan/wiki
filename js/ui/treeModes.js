@@ -4,8 +4,8 @@ import { state } from "../document/state.js";
 
 // Manages pages/trash tree view mode and per-page lock mode.
 export function createModes() {
-  if (typeof state.isReadMode !== "boolean") state.isReadMode = false;
   let treeMode = "pages";
+  let currentReadMode = false;
 
   function getCurrentPage() {
     if (!state.currentPage) return null;
@@ -35,7 +35,7 @@ export function createModes() {
     const inTrashPreview = Boolean(state.trashPreviewName);
     const currentPageLocked = isCurrentPageLocked();
     const isReadMode = resolveReadOnlyState();
-    state.isReadMode = isReadMode;
+    currentReadMode = isReadMode;
 
     document.body.classList.toggle("read-mode", isReadMode);
     document.body.classList.toggle("trash-preview-mode", inTrashPreview);
@@ -116,6 +116,6 @@ export function createModes() {
     toggleMode,
     setTreeMode,
     getTreeMode: () => treeMode,
-    getIsReadMode: () => state.isReadMode
+    getIsReadMode: () => currentReadMode
   };
 }
