@@ -18,7 +18,6 @@ export const dom = {
   pageItemMenu: document.getElementById("pageItemMenu"),
   pageMenuOpenBtn: document.getElementById("pageMenuOpenBtn"),
   pageMenuNewChildBtn: document.getElementById("pageMenuNewChildBtn"),
-  pageMenuRenameBtn: document.getElementById("pageMenuRenameBtn"),
   pageMenuSortUpBtn: document.getElementById("pageMenuSortUpBtn"),
   pageMenuSortDownBtn: document.getElementById("pageMenuSortDownBtn"),
   pageMenuSetSortBtn: document.getElementById("pageMenuSetSortBtn"),

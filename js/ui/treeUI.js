@@ -51,15 +51,7 @@ export function createWikiBindings() {
     });
   }
 
-  // 绑定页面树右键菜单、重命名和相关点击行为。
   function bindPageTreeContextMenu() {
-    let renamingPage = "";
-    let renameInputEl = null;
-    let renamingItemEl = null;
-    let renamingNameSpan = null;
-    let renamingMetaSpan = null;
-    let lastClickPage = "";
-    let lastClickAt = 0;
 
     // 在指定坐标显示页面菜单，并记录目标页面名。
     const showMenu = (x, y, pageName) => {
@@ -69,9 +61,6 @@ export function createWikiBindings() {
 
     // 读取右键菜单当前对应的页面名。
     const getTargetPage = () => wiki.sanitizeName(dom.pageItemMenu.dataset.page);
-    // 在树列表中查找对应页面节点元素。
-    const findPageItemEl = (pageName) => Array.from(dom.pageList.querySelectorAll(".page-item"))
-      .find((el) => wiki.sanitizeName(el.dataset.page) === pageName);
 
     // 清除编辑器选区与光标，避免树节点操作与编辑区冲突。
     const clearEditorCaret = () => {
@@ -85,102 +74,6 @@ export function createWikiBindings() {
       if (document.activeElement === dom.editor) {
         dom.editor.blur();
       }
-    };
-
-    // 关闭重命名输入框并恢复节点原始显示。
-    const hideRenameInput = () => {
-      if (renameInputEl && renameInputEl.parentNode) renameInputEl.remove();
-      if (renamingNameSpan) renamingNameSpan.style.visibility = "";
-      if (renamingMetaSpan) renamingMetaSpan.style.visibility = "";
-      if (renamingItemEl) renamingItemEl.classList.remove("renaming");
-      const selection = window.getSelection();
-      if (selection) selection.removeAllRanges();
-      renameInputEl = null;
-      renamingItemEl = null;
-      renamingNameSpan = null;
-      renamingMetaSpan = null;
-      renamingPage = "";
-    };
-
-    // 提交重命名结果并在成功后打开新页面名。
-    const commitRename = () => {
-      if (!renameInputEl) return;
-      const oldName = renamingPage;
-      const nextName = wiki.sanitizeName(renameInputEl.value);
-      hideRenameInput();
-      if (!oldName) return;
-      if (!nextName || nextName === oldName) return;
-      if (!wiki.renamePage(oldName, nextName)) return;
-      wiki.openPage(nextName);
-    };
-
-    // 在指定页面节点上展示内联重命名输入框。
-    const showRenameInput = (pageName) => {
-      const cleanName = wiki.sanitizeName(pageName);
-      if (!cleanName || !state.pages[cleanName]) return;
-      if (state.autoSaveTimer) {
-        clearTimeout(state.autoSaveTimer);
-        state.autoSaveTimer = null;
-        wiki.saveCurrentPage(true);
-      }
-
-      const item = findPageItemEl(cleanName);
-      if (!item) return;
-      if (renameInputEl && renamingPage === cleanName) {
-        renameInputEl.focus();
-        renameInputEl.select();
-        return;
-      }
-      if (renameInputEl) commitRename();
-
-      renamingPage = cleanName;
-
-      const input = document.createElement("input");
-      input.type = "text";
-      input.className = "title-input page-rename-input";
-      input.value = cleanName;
-      input.maxLength = 120;
-      input.spellcheck = false;
-      input.setAttribute("autocomplete", "off");
-      input.setAttribute("autocorrect", "off");
-      input.setAttribute("autocapitalize", "off");
-      input.setAttribute("data-gramm", "false");
-      item.style.position = "relative";
-      item.classList.add("renaming");
-      renamingItemEl = item;
-      renamingNameSpan = item.querySelector("span");
-      renamingMetaSpan = item.querySelector(".meta-text");
-      if (renamingNameSpan) renamingNameSpan.style.visibility = "hidden";
-      if (renamingMetaSpan) renamingMetaSpan.style.visibility = "hidden";
-      item.appendChild(input);
-      renameInputEl = input;
-
-      input.focus();
-      const cursorPos = input.value.length;
-      input.setSelectionRange(cursorPos, cursorPos);
-
-      input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          commitRename();
-          return;
-        }
-        if (e.key === "Escape") {
-          e.preventDefault();
-          hideRenameInput();
-        }
-      });
-
-      input.addEventListener("click", (e) => e.stopPropagation());
-      input.addEventListener("dblclick", (e) => e.stopPropagation());
-      input.addEventListener("blur", () => {
-        const nextName = wiki.sanitizeName(input.value);
-        if (!nextName) {
-          hideRenameInput();
-          return;
-        }
-        commitRename();
-      });
     };
 
     dom.pageList.addEventListener("contextmenu", (e) => {
@@ -197,30 +90,13 @@ export function createWikiBindings() {
     });
 
     dom.pageList.addEventListener("click", (e) => {
-      if (e.target.closest(".page-rename-input")) return;
       const item = e.target.closest(".page-item");
       if (item) {
         clearEditorCaret();
-        if (renameInputEl && item !== renamingItemEl) hideRenameInput();
         const pageName = wiki.sanitizeName(item.dataset.page);
-        if (pageName) {
-          state.selectedPage = pageName;
-          const now = Date.now();
-          // 双击触发内联重命名；单击仅更新选中态。
-          if (lastClickPage === pageName && now - lastClickAt <= 320) {
-            requestAnimationFrame(() => showRenameInput(pageName));
-            lastClickPage = "";
-            lastClickAt = 0;
-          } else {
-            lastClickPage = pageName;
-            lastClickAt = now;
-          }
-        }
+        if (pageName) state.selectedPage = pageName;
         return;
       }
-      hideRenameInput();
-      lastClickPage = "";
-      lastClickAt = 0;
       if (!state.selectedPage) return;
       state.selectedPage = "";
       wiki.renderPageList();
@@ -232,9 +108,7 @@ export function createWikiBindings() {
       if (e.target.closest(".main")) return;
       if (e.target.closest(".page-item")) return;
       if (e.target.closest("#pageItemMenu")) return;
-      if (e.target.closest(".page-rename-input")) return;
       // 点击树区域外时清空选中态，避免误操作。
-      hideRenameInput();
       state.selectedPage = "";
       wiki.renderPageList();
     });
@@ -253,13 +127,6 @@ export function createWikiBindings() {
       if (!name) return;
       wiki.openPage(name);
       focusEditor(true);
-      dom.pageItemMenu.style.display = "none";
-    });
-
-    dom.pageMenuRenameBtn.addEventListener("click", () => {
-      const page = getTargetPage();
-      if (!page) return;
-      showRenameInput(page);
       dom.pageItemMenu.style.display = "none";
     });
 
@@ -312,9 +179,6 @@ export function createWikiBindings() {
   // 绑定页面树拖拽逻辑，用于调整页面父子层级。
   function bindPageTreeDragDrop() {
     let draggingPage = "";
-    // 判断当前是否处于重命名态，重命名时禁用拖拽。
-    const isRenamingPage = () => Boolean(dom.pageList.querySelector(".page-item.renaming"));
-
     // 清除拖拽高亮状态。
     function clearDragMarks(includeDragging = false) {
       const selector = includeDragging
@@ -325,10 +189,6 @@ export function createWikiBindings() {
     }
 
     dom.pageList.addEventListener("dragstart", (e) => {
-      if (isRenamingPage()) {
-        e.preventDefault();
-        return;
-      }
       const item = e.target.closest(".page-item");
       if (!item) return;
       // 记录拖拽源页面名，后续 drop 用于执行 movePage。
@@ -346,7 +206,6 @@ export function createWikiBindings() {
     });
 
     dom.pageList.addEventListener("dragover", (e) => {
-      if (isRenamingPage()) return;
       const item = e.target.closest(".page-item");
       if (!item) return;
       e.preventDefault();
@@ -357,10 +216,6 @@ export function createWikiBindings() {
     });
 
     dom.pageList.addEventListener("drop", (e) => {
-      if (isRenamingPage()) {
-        e.preventDefault();
-        return;
-      }
       const item = e.target.closest(".page-item");
       if (!item || !draggingPage) return;
       e.preventDefault();
