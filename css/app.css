@@ -181,6 +181,7 @@ button:hover, select:hover, .page-item:hover { border-color: var(--accent); }
 }
 .page-item.active { border-color: #bfd4f8; background: #f4f8ff; color: #1c4f96; font-weight: 500; }
 .page-item.selected { border-color: var(--accent); background: var(--accent-soft); color: #0f4fb3; font-weight: 600; }
+.page-item.locked { border-style: dashed; }
 .page-item.drag-over { border-color: var(--accent); background: #eef5ff; }
 .page-item.drag-before { border-top: 2px solid var(--accent); }
 .page-item.drag-after { border-bottom: 2px solid var(--accent); }
@@ -324,6 +325,6 @@ button:hover, select:hover, .page-item:hover { border-color: var(--accent); }
 }
 .context-menu button { width: 100%; text-align: left; padding: 6.4px 8px; border: none; background: transparent; color: inherit; border-radius: 6.4px; }
 .context-menu button:hover { background: rgba(255, 255, 255, 0.12); }
-body.read-mode .toolbar { display: none; }
+body.trash-preview-mode .toolbar { display: none; }
 
 

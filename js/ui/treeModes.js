@@ -2,33 +2,25 @@ import { t } from "../text.js";
 import { dom } from "./dom.js";
 import { state } from "../document/state.js";
 
-// 创建阅读/编辑模式与页面树/回收站视图模式管理器。
+// Manages pages/trash tree view mode and per-page lock mode.
 export function createModes() {
-  const MODE_STORAGE_KEY = "wiki-mode-v1";
-  const MODE_READ = "read";
-  const MODE_EDIT = "edit";
-
-  // 从本地存储读取上次模式，默认阅读模式。
-  function loadModeFromStorage() {
-    try {
-      const raw = localStorage.getItem(MODE_STORAGE_KEY);
-      if (raw === MODE_EDIT) return false;
-      if (raw === MODE_READ) return true;
-    } catch {}
-    return true;
-  }
-
-  // 将当前模式写回本地存储。
-  function saveModeToStorage() {
-    try {
-      localStorage.setItem(MODE_STORAGE_KEY, isReadMode ? MODE_READ : MODE_EDIT);
-    } catch {}
-  }
-
-  let isReadMode = loadModeFromStorage();
+  if (typeof state.isReadMode !== "boolean") state.isReadMode = false;
   let treeMode = "pages";
 
-  // 应用左侧树视图（页面列表/回收站列表）显示状态。
+  function getCurrentPage() {
+    if (!state.currentPage) return null;
+    return state.pages[state.currentPage] || null;
+  }
+
+  function isCurrentPageLocked() {
+    const page = getCurrentPage();
+    return Boolean(page && page.locked);
+  }
+
+  function resolveReadOnlyState() {
+    return Boolean(state.trashPreviewName) || isCurrentPageLocked();
+  }
+
   function applyTreeMode() {
     const showPages = treeMode === "pages";
     dom.pageList.classList.toggle("hidden", !showPages);
@@ -38,37 +30,79 @@ export function createModes() {
     dom.quickCreatePageBtn.disabled = !showPages;
   }
 
-  // 应用阅读/编辑模式到页面和编辑器。
   function applyMode() {
+    const hasCurrentPage = Boolean(getCurrentPage());
+    const inTrashPreview = Boolean(state.trashPreviewName);
+    const currentPageLocked = isCurrentPageLocked();
+    const isReadMode = resolveReadOnlyState();
+    state.isReadMode = isReadMode;
+
     document.body.classList.toggle("read-mode", isReadMode);
+    document.body.classList.toggle("trash-preview-mode", inTrashPreview);
+    document.body.classList.toggle("page-locked-mode", !inTrashPreview && currentPageLocked);
     if (state.editor && typeof state.editor.setReadOnly === "function") {
       state.editor.setReadOnly(isReadMode);
     }
-    dom.modeToggleBtn.textContent = isReadMode ? t("mode.edit") : t("mode.read");
-    saveModeToStorage();
+
+    if (!dom.modeToggleBtn) return;
+    if (inTrashPreview) {
+      dom.modeToggleBtn.disabled = true;
+      dom.modeToggleBtn.textContent = t("mode.lockInTrashPreview");
+      return;
+    }
+
+    dom.modeToggleBtn.disabled = !hasCurrentPage;
+    dom.modeToggleBtn.textContent = isCurrentPageLocked() ? t("mode.unlock") : t("mode.lock");
   }
 
-  // 切换到编辑模式（若已是编辑模式则跳过）。
+  function setCurrentPageLocked(nextLocked) {
+    if (state.trashPreviewName) return false;
+    const pageName = state.currentPage;
+    const page = getCurrentPage();
+    if (!pageName || !page) return false;
+    if (!state.wiki || typeof state.wiki.setPageLocked !== "function") return false;
+
+    const targetLocked = Boolean(nextLocked);
+    const currentLocked = Boolean(page.locked);
+    if (targetLocked === currentLocked) {
+      applyMode();
+      return true;
+    }
+
+    // Locking should capture latest unsaved content once before entering read-only mode.
+    if (targetLocked && state.autoSaveTimer) {
+      clearTimeout(state.autoSaveTimer);
+      state.autoSaveTimer = null;
+      if (typeof state.wiki.saveCurrentPage === "function") state.wiki.saveCurrentPage(true);
+    }
+
+    return state.wiki.setPageLocked(pageName, targetLocked);
+  }
+
   function switchToEditMode() {
-    if (!isReadMode) return;
-    isReadMode = false;
-    applyMode();
+    if (state.trashPreviewName) {
+      applyMode();
+      return false;
+    }
+    return setCurrentPageLocked(false);
   }
 
-  // 切换到阅读模式（若已是阅读模式则跳过）。
   function switchToReadMode() {
-    if (isReadMode) return;
-    isReadMode = true;
-    applyMode();
+    if (state.trashPreviewName) {
+      applyMode();
+      return true;
+    }
+    return setCurrentPageLocked(true);
   }
 
-  // 在阅读/编辑两种模式间切换。
   function toggleMode() {
-    isReadMode = !isReadMode;
-    applyMode();
+    if (state.trashPreviewName) {
+      applyMode();
+      return false;
+    }
+    return setCurrentPageLocked(!isCurrentPageLocked());
   }
 
-  // 设置树视图模式，仅允许 pages 或 trash。
   function setTreeMode(mode) {
     treeMode = mode === "trash" ? "trash" : "pages";
     applyTreeMode();
@@ -82,6 +116,6 @@ export function createModes() {
     toggleMode,
     setTreeMode,
     getTreeMode: () => treeMode,
-    getIsReadMode: () => isReadMode
+    getIsReadMode: () => state.isReadMode
   };
 }

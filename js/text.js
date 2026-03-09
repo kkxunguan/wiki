@@ -20,11 +20,15 @@ const messages = {
   "error.sortMustBeNumber": "排序值必须是数字",
   "error.targetParentMissing": "目标父级不存在",
   "error.trashPreviewReadOnlyMode": "回收站预览仅支持阅读模式",
+  "error.trashPreviewLockToggle": "回收站预览下不可切换页面锁定",
   "error.trashPreviewReadOnlySave": "回收站预览不可保存",
   "error.wangEditorLoadFailed": "WangEditor 加载失败，已降级为基础编辑器。",
 
   "mode.edit": "编辑",
   "mode.read": "阅读",
+  "mode.lock": "锁定页面",
+  "mode.unlock": "解锁页面",
+  "mode.lockInTrashPreview": "回收站预览",
 
   "page.defaultPrefix": "页面",
   "page.home": "首页",
@@ -52,6 +56,8 @@ const messages = {
   "status.movedToTrash": "已移入回收站：{name}",
   "status.movedUp": "已上移：{name}",
   "status.pageCreated": "已创建页面：{name}",
+  "status.pageLocked": "已锁定页面：{name}",
+  "status.pageUnlocked": "已解锁页面：{name}",
   "status.purgedFromTrash": "已从回收站彻底删除：{name}",
   "status.renamed": "已重命名：{oldName} -> {newName}",
   "status.restoredFromTrash": "已从回收站恢复：{name}",
@@ -66,6 +72,7 @@ const messages = {
   "status.trashPreview": "回收站预览",
 
   "wiki.pageMeta": "{count}字 / 排序{sortKey}",
+  "wiki.pageLockedTag": "[锁定]",
   "wiki.trashDepth": "层级{depth}",
   "wiki.trashDepthRoot": "根",
   "wiki.trashEmpty": "回收站为空"

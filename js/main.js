@@ -33,6 +33,7 @@ function isLatestPageShape(page) {
   if (typeof page.title !== "string") return false;
   if (typeof page.content !== "string") return false;
   if (!Object.prototype.hasOwnProperty.call(page, "pageBackground")) return false;
+  if (!Object.prototype.hasOwnProperty.call(page, "locked")) return false;
   if (!Object.prototype.hasOwnProperty.call(page, "sortKey")) return false;
   if (!Object.prototype.hasOwnProperty.call(page, "order")) return false;
   return true;
@@ -44,6 +45,7 @@ function isLatestTrashShape(item) {
   if (typeof item.title !== "string") return false;
   if (typeof item.content !== "string") return false;
   if (!Object.prototype.hasOwnProperty.call(item, "pageBackground")) return false;
+  if (!Object.prototype.hasOwnProperty.call(item, "locked")) return false;
   if (!Object.prototype.hasOwnProperty.call(item, "sortKey")) return false;
   if (!Object.prototype.hasOwnProperty.call(item, "order")) return false;
   if (!Object.prototype.hasOwnProperty.call(item, "root")) return false;

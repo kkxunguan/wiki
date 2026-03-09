@@ -169,6 +169,7 @@ export function createEditor() {
   }
 
   // 初始化 WangEditor 及工具栏，失败时由调用方决定降级策略。
+  // https://www.wangeditor.com/v5/getting-started.html#%E5%BC%95%E5%85%A5-css-%E5%AE%9A%E4%B9%89%E6%A0%B7%E5%BC%8F
   function initWangEditor() {
     const E = window.wangEditor;
     wangReady = false;
@@ -189,6 +190,7 @@ export function createEditor() {
       }
     });
 
+    // 创建 toolbar
     wangToolbar = E.createToolbar({
       editor: wangEditor,
       selector: "#editorToolbar",

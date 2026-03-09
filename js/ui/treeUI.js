@@ -21,11 +21,6 @@ export function createWikiBindings() {
 
   // 绑定顶层操作按钮：新建页、模式切换、页面/回收站切换。
   function bindWikiActions() {
-    dom.trashList.addEventListener("click", (e) => {
-      if (!e.target.closest("[data-trash-name]")) return;
-      modes.switchToReadMode();
-    });
-
     dom.quickCreatePageBtn.addEventListener("click", () => {
       if (modes.getTreeMode() !== "pages") {
         setStatus(t("error.cannotCreateInTrashView"));
@@ -35,17 +30,17 @@ export function createWikiBindings() {
       const name = wiki.createAutoPage(parent, t("page.defaultPrefix"));
       if (!name) return;
       wiki.openPage(name);
-      modes.switchToEditMode();
       focusEditor(true);
     });
 
     dom.modeToggleBtn.addEventListener("click", () => {
-      if (state.trashPreviewName && modes.getIsReadMode()) {
-        setStatus(t("error.trashPreviewReadOnlyMode"));
+      if (state.trashPreviewName) {
+        setStatus(t("error.trashPreviewLockToggle"));
         return;
       }
-      modes.toggleMode();
-      if (modes.getIsReadMode()) focusEditor(false);
+      const toggled = modes.toggleMode();
+      if (!toggled) return;
+      if (!modes.getIsReadMode()) focusEditor(false);
     });
 
     dom.showPagesBtn.addEventListener("click", () => {
@@ -257,7 +252,6 @@ export function createWikiBindings() {
       const name = wiki.createAutoPage(parent, t("page.defaultPrefix"));
       if (!name) return;
       wiki.openPage(name);
-      modes.switchToEditMode();
       focusEditor(true);
       dom.pageItemMenu.style.display = "none";
     });

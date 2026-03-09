@@ -159,6 +159,7 @@ export function createWiki() {
         title: page.title || name,
         content: sanitizeHtml(page.content || "<p></p>"),
         pageBackground: sanitizePageBackground(page.pageBackground),
+        locked: Boolean(page.locked),
         parent: page.parent || null,
         sortKey: normalizedSortKey,
         order: normalizedSortKey
@@ -185,6 +186,7 @@ export function createWiki() {
         title: item.title || name,
         content: sanitizeHtml(item.content || "<p></p>"),
         pageBackground: sanitizePageBackground(item.pageBackground),
+        locked: Boolean(item.locked),
         parent: item.parent || null,
         sortKey,
         order: sortKey,
@@ -363,7 +365,8 @@ export function createWiki() {
       const item = document.createElement("div");
       const activeCls = name === state.currentPage ? " active" : "";
       const selectedCls = name === state.selectedPage ? " selected" : "";
-      item.className = `page-item${activeCls}${selectedCls}`;
+      const lockedCls = page.locked ? " locked" : "";
+      item.className = `page-item${activeCls}${selectedCls}${lockedCls}`;
       item.style.marginLeft = `${depth * 16}px`;
       item.dataset.page = name;
       item.draggable = true;
@@ -372,7 +375,7 @@ export function createWiki() {
         ? Number(page.sortKey)
         : (Number.isFinite(Number(page.order)) ? Number(page.order) : 0);
       const nameEl = document.createElement("span");
-      nameEl.textContent = name;
+      nameEl.textContent = page.locked ? `${name} ${t("wiki.pageLockedTag")}` : name;
       const metaEl = document.createElement("span");
       metaEl.className = "meta-text";
       metaEl.textContent = t("wiki.pageMeta", { count: wc, sortKey });
@@ -437,6 +440,7 @@ export function createWiki() {
       title: clean,
       content: sanitizeHtml(content),
       pageBackground: PAGE_BG_DEFAULT,
+      locked: false,
       parent: safeParent,
       sortKey,
       order: sortKey
@@ -482,6 +486,9 @@ export function createWiki() {
     writeEditorHtml(page.content || "<p></p>");
     applyEditorBackground(page.pageBackground);
     renderPageList();
+    if (state.modes && typeof state.modes.applyMode === "function") {
+      state.modes.applyMode();
+    }
     setStatus(t("status.currentPage", { path: buildPagePath(clean) }));
   }
 
@@ -501,6 +508,9 @@ export function createWiki() {
     state.trashPreviewName = clean;
     writeEditorHtml(state.trash[clean].content || "<p></p>");
     applyEditorBackground(state.trash[clean].pageBackground);
+    if (state.modes && typeof state.modes.applyMode === "function") {
+      state.modes.applyMode();
+    }
     setStatus(t("status.trashPath", { path: buildTrashPath(clean) }));
     return true;
   }
@@ -632,6 +642,7 @@ export function createWiki() {
         title: newName,
         content: node.content || "<p></p>",
         pageBackground: sanitizePageBackground(node.pageBackground),
+        locked: Boolean(node.locked),
         parent: restoredParent,
         sortKey: restoredSortKey,
         order: restoredSortKey
@@ -677,6 +688,7 @@ export function createWiki() {
         title: page.title || pageName,
         content: page.content || "<p></p>",
         pageBackground: sanitizePageBackground(page.pageBackground),
+        locked: Boolean(page.locked),
         parent: page.parent || null,
         sortKey: Number.isFinite(Number(page.sortKey))
           ? Number(page.sortKey)
@@ -736,6 +748,7 @@ export function createWiki() {
       title: current.title || clean,
       content: current.content || "<p></p>",
       pageBackground: sanitizePageBackground(current.pageBackground),
+      locked: Boolean(current.locked),
       parent: current.parent || null,
       sortKey: Number.isFinite(Number(current.sortKey))
         ? Number(current.sortKey)
@@ -831,6 +844,23 @@ export function createWiki() {
     return true;
   }
 
+  // Set lock state for a page; locked pages become read-only.
+  function setPageLocked(name, locked) {
+    const clean = sanitizeName(name);
+    if (!clean || !state.pages[clean]) return false;
+    const nextLocked = Boolean(locked);
+    if (Boolean(state.pages[clean].locked) === nextLocked) return true;
+
+    state.pages[clean].locked = nextLocked;
+    persistPages();
+    renderPageList();
+    if (state.modes && typeof state.modes.applyMode === "function") {
+      state.modes.applyMode();
+    }
+    setStatus(nextLocked ? t("status.pageLocked", { name: clean }) : t("status.pageUnlocked", { name: clean }));
+    return true;
+  }
+
   // 绑定回收站点击/右键菜单的交互行为。
   function bindTrashActions() {
     if (!dom.trashList) return;
@@ -879,6 +909,7 @@ export function createWiki() {
     movePage,
     movePageSort,
     setPageSortKey,
+    setPageLocked,
     renamePage,
     deletePageByName,
     deletePageKeepChildrenByName,
