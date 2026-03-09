@@ -3,13 +3,6 @@ import { dom } from "./dom.js";
 import { AUTO_SAVE_DELAY_MS, state } from "../document/state.js";
 import { setStatus } from "./uiShared.js";
 
-// 将 HTML 转为纯文本并压缩空白，用于字数统计。
-function htmlToPlainText(html) {
-  const template = document.createElement("template");
-  template.innerHTML = String(html || "");
-  return (template.content.textContent || "").replace(/\s+/g, "").trim();
-}
-
 // 兜底保证编辑器内容至少是一个可编辑的空段落。
 function ensureHtml(input) {
   const raw = String(input || "").trim();
@@ -110,10 +103,17 @@ export function createEditor() {
 
   // 读取纯文本内容，用于字数统计和其他文本处理。
   function getText() {
+    let plainText = "";
+
     if (wangEditor && typeof wangEditor.getText === "function") {
-      return String(wangEditor.getText() || "").replace(/\s+/g, "").trim();
+      plainText = String(wangEditor.getText() || "");
+    } else {
+      const template = document.createElement("template");
+      template.innerHTML = getHtml();
+      plainText = template.content.textContent || "";
     }
-    return htmlToPlainText(getHtml());
+
+    return plainText.replace(/\s+/g, "").trim();
   }
 
   // 聚焦编辑器。
