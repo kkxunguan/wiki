@@ -14,21 +14,27 @@ import { createSearchBindings } from "./ui/searchUI.js";
 import { t } from "./text.js";
 
 async function init() {
-  state.wiki = createWiki();
-  state.editor = createEditor();
-
-  state.modes = createModes();
-  state.search = createSearch();
-  state.searchBindings = createSearchBindings();
-
   const rawPages = await loadPages(STORAGE_KEY);
   const rawTrash = await loadJson(STORAGE_TRASH_KEY, {});
 
-  state.pages = state.wiki.normalizePages(rawPages);
-  state.trash = state.wiki.normalizeTrash(rawTrash);
+  const wiki = createWiki();
+  const editor = createEditor();
+  const modes = createModes();
+  const search = createSearch();
+  const searchBindings = createSearchBindings();
+
+  state.wiki = wiki;
+  state.editor = editor;
+  state.modes = modes;
+  state.search = search;
+  state.searchBindings = searchBindings;
+
+  state.pages = wiki.normalizePages(rawPages);
+  state.trash = wiki.normalizeTrash(rawTrash);
+
   if (!Object.keys(state.pages).length) {
     const homePage = t("page.home");
-    state.pages = state.wiki.normalizePages({
+    state.pages = wiki.normalizePages({
       [homePage]: {
         title: homePage,
         content: t("content.homeWelcome"),
@@ -37,15 +43,16 @@ async function init() {
     });
   }
 
-  createWikiBindings().bindAll();
-  state.searchBindings.bindAll();
+  const wikiBindings = createWikiBindings();
+  wikiBindings.bindAll();
+  searchBindings.bindAll();
 
-  state.wiki.bindTrashActions();
-  state.wiki.renderPageList();
-  state.wiki.renderTrashList();
-  state.modes.applyTreeMode();
-  state.wiki.openPage(Object.keys(state.pages)[0]);
-  state.modes.applyMode();
+  wiki.bindTrashActions();
+  wiki.renderPageList();
+  wiki.renderTrashList();
+  modes.applyTreeMode();
+  wiki.openPage(Object.keys(state.pages)[0]);
+  modes.applyMode();
   setStatus(t("status.loaded"));
 }
 
