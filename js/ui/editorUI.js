@@ -11,7 +11,7 @@ function ensureHtml(input) {
 
 // 创建编辑器适配层，统一 WangEditor 与降级编辑模式行为。
 export function createEditor() {
-  let readOnly = false;
+  let readOnly = true;
   let wangEditor = null;
   let wangToolbar = null;
 
@@ -96,20 +96,8 @@ export function createEditor() {
     document.dispatchEvent(new CustomEvent("editor:content-change"));
   }
 
-  // 应用只读状态到当前编辑器实现。
-  function applyReadOnlyState() {
-    if (!wangEditor) {
-      if (dom.editor) dom.editor.setAttribute("contenteditable", readOnly ? "false" : "true");
-      return;
-    }
-    try {
-      if (readOnly && typeof wangEditor.disable === "function") wangEditor.disable();
-      if (!readOnly && typeof wangEditor.enable === "function") wangEditor.enable();
-    } catch {}
-  }
-
   // 初始化 WangEditor 及工具栏，失败时由调用方决定降级策略。
-  // https://www.wangeditor.com/v5/getting-started.html#%E5%BC%95%E5%85%A5-css-%E5%AE%9A%E4%B9%89%E6%A0%B7%E5%BC%8F
+  // https://www.wangeditor.com/v5/getting-started.html
   function initWangEditor() {
     const E = window.wangEditor;
 
@@ -138,14 +126,19 @@ export function createEditor() {
       }
     });
 
-    applyReadOnlyState();
+    setReadOnly(readOnly);
     updateCounter();
   }
 
   // 设置编辑器只读状态。
   function setReadOnly(value) {
     readOnly = Boolean(value);
-    applyReadOnlyState();
+    if (!wangEditor) return;
+    if (readOnly) {
+      wangEditor.disable();
+    } else {
+      wangEditor.enable();
+    }
   }
 
   // 获取用于搜索定位的根节点（兼容 Slate 结构）。
