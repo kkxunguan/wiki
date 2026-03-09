@@ -12,13 +12,8 @@ function ensureHtml(input) {
 // 创建编辑器适配层，统一 WangEditor 与降级编辑模式行为。
 export function createEditor() {
   let readOnly = false;
-  let suppressChange = false;
   let wangEditor = null;
   let wangToolbar = null;
-  let wangReady = false;
-  let pendingHtml = null;
-  let pendingSetHtmlFrame = 0;
-  let pendingSetHtmlRetry = 0;
 
   // 读取当前编辑器 HTML（优先 WangEditor）。
   function getHtml() {
@@ -29,75 +24,21 @@ export function createEditor() {
   }
 
   // 执行延迟 setHtml：等待编辑器 ready 后再写入，避免初始化阶段失败。
-  function flushPendingSetHtml() {
-    pendingSetHtmlFrame = 0;
-    if (!wangEditor || typeof wangEditor.setHtml !== "function") {
-      // 编辑器不可用时丢弃待写队列，避免重复重试。
-      pendingHtml = null;
-      pendingSetHtmlRetry = 0;
-      return;
-    }
-    if (!wangReady) {
-      // 尚未 ready 时继续下一帧等待。
-      pendingSetHtmlFrame = requestAnimationFrame(flushPendingSetHtml);
-      return;
-    }
-
-    const html = pendingHtml;
-    pendingHtml = null;
-    if (html === null) return;
-
-    // setHtml 期间抑制 onChange，避免“程序写入”触发自动保存。
-    suppressChange = true;
-    try {
-      if (typeof wangEditor.blur === "function") {
-        wangEditor.blur();
-      }
-      wangEditor.setHtml(html);
-      pendingSetHtmlRetry = 0;
-    } catch (err) {
-      // 短暂失败最多重试 3 次，避免无限循环。
-      pendingHtml = html;
-      pendingSetHtmlRetry += 1;
-      if (pendingSetHtmlRetry <= 3) {
-        pendingSetHtmlFrame = requestAnimationFrame(flushPendingSetHtml);
-      } else {
-        pendingHtml = null;
-        pendingSetHtmlRetry = 0;
-        console.error(err);
-      }
-    } finally {
-      suppressChange = false;
-      updateCounter();
-    }
-
-    if (pendingHtml !== null && !pendingSetHtmlFrame) {
-      // 若执行中又有新写入请求，继续调度下一帧处理。
-      pendingSetHtmlFrame = requestAnimationFrame(flushPendingSetHtml);
-    }
-  }
-
-  // 安排一次异步 setHtml，合并短时间内多次写入请求。
-  function scheduleSetHtml(safeHtml) {
-    if (!wangEditor || typeof wangEditor.setHtml !== "function") return false;
-    pendingHtml = safeHtml;
-    if (!pendingSetHtmlFrame) {
-      pendingSetHtmlFrame = requestAnimationFrame(flushPendingSetHtml);
-    }
-    return true;
-  }
-
-  // 对外写入 HTML 接口，自动选择 WangEditor 或降级容器。
   function setHtml(nextHtml) {
     const safeHtml = ensureHtml(nextHtml);
-    if (scheduleSetHtml(safeHtml)) return;
-
-    suppressChange = true;
-    try {
-      if (dom.editor) dom.editor.innerHTML = safeHtml;
-    } finally {
-      suppressChange = false;
+    if (wangEditor && typeof wangEditor.setHtml === "function") {
+      try {
+        if (typeof wangEditor.blur === "function") wangEditor.blur();
+        wangEditor.setHtml(safeHtml);
+      } catch (err) {
+        console.error(err);
+        if (dom.editor) dom.editor.innerHTML = safeHtml;
+      }
+      updateCounter();
+      return;
     }
+
+    if (dom.editor) dom.editor.innerHTML = safeHtml;
     updateCounter();
   }
 
@@ -150,7 +91,6 @@ export function createEditor() {
 
   // 向外通知“内容发生变化”，并抛出全局自定义事件。
   function notifyContentChanged() {
-    if (suppressChange) return;
     updateCounter();
     queueAutoSave();
     document.dispatchEvent(new CustomEvent("editor:content-change"));
@@ -172,7 +112,6 @@ export function createEditor() {
   // https://www.wangeditor.com/v5/getting-started.html#%E5%BC%95%E5%85%A5-css-%E5%AE%9A%E4%B9%89%E6%A0%B7%E5%BC%8F
   function initWangEditor() {
     const E = window.wangEditor;
-    wangReady = false;
 
     // 先创建编辑器实例，再创建工具栏并与实例绑定。
     wangEditor = E.createEditor({
@@ -201,14 +140,6 @@ export function createEditor() {
 
     applyReadOnlyState();
     updateCounter();
-    requestAnimationFrame(() => {
-      if (!wangEditor) return;
-      // 下一帧再标记 ready，确保初次渲染完成后再消费 pendingHtml。
-      wangReady = true;
-      if (pendingHtml !== null && !pendingSetHtmlFrame) {
-        pendingSetHtmlFrame = requestAnimationFrame(flushPendingSetHtml);
-      }
-    });
   }
 
   // 设置编辑器只读状态。
