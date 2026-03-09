@@ -103,12 +103,16 @@ export function createWikiBindings() {
     });
 
     document.addEventListener("click", (e) => {
+      const clickedInPageMenu = Boolean(e.target.closest("#pageItemMenu"));
+      const clickedInTrashMenu = Boolean(e.target.closest("#trashItemMenu"));
+      if (!clickedInPageMenu && dom.pageItemMenu) dom.pageItemMenu.style.display = "none";
+      if (!clickedInTrashMenu && dom.trashItemMenu) dom.trashItemMenu.style.display = "none";
+
       if (!state.selectedPage) return;
       if (modes.getTreeMode() !== "pages") return;
       if (e.target.closest(".main")) return;
       if (e.target.closest(".page-item")) return;
-      if (e.target.closest("#pageItemMenu")) return;
-      // 点击树区域外时清空选中态，避免误操作。
+      if (clickedInPageMenu) return;
       state.selectedPage = "";
       wiki.renderPageList();
     });
