@@ -104,6 +104,7 @@ export function createSearch() {
     Object.keys(state.pages || {}).forEach((pageName) => {
       if (results.length >= maxResults) return;
       const page = state.pages[pageName] || {};
+      const displayName = String(page.title || pageName);
       const pageText = extractNormalizedTextFromHtml(page.content || "");
       if (!pageText) return;
 
@@ -115,6 +116,7 @@ export function createSearch() {
           id: `${pageName}::${occurrence}::${position}`,
           query,
           pageName,
+          displayName,
           occurrence,
           position,
           snippetHtml: buildSnippetHtml(pageText, position, query.length)

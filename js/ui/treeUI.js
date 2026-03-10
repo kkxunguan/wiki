@@ -56,6 +56,19 @@ export function createWikiBindings() {
     // 在指定坐标显示页面菜单，并记录目标页面名。
     const showMenu = (x, y, pageName) => {
       dom.pageItemMenu.dataset.page = pageName;
+      const page = wiki.sanitizeName(pageName);
+      const pageData = page ? state.pages[page] : null;
+      const isRootPage = Boolean(pageData && !pageData.parent);
+      const toggleBtn = (btn, visible) => {
+        if (!btn) return;
+        btn.style.display = visible ? "" : "none";
+      };
+      const canShowRootRestrictedActions = !isRootPage;
+      toggleBtn(dom.pageMenuSortUpBtn, canShowRootRestrictedActions);
+      toggleBtn(dom.pageMenuSortDownBtn, canShowRootRestrictedActions);
+      toggleBtn(dom.pageMenuSetSortBtn, canShowRootRestrictedActions);
+      toggleBtn(dom.pageMenuDeleteBtn, canShowRootRestrictedActions);
+      if (dom.pageMenuDeleteBtn) dom.pageMenuDeleteBtn.disabled = isRootPage;
       showMenuInViewport(dom.pageItemMenu, x, y);
     };
 
@@ -66,14 +79,18 @@ export function createWikiBindings() {
       if (!dom.renameDialogBackdrop) return;
       dom.renameDialogBackdrop.classList.add("hidden");
       dom.renameDialogBackdrop.dataset.page = "";
+      dom.renameDialogBackdrop.dataset.action = "";
+      if (dom.renameDialogTitle) dom.renameDialogTitle.textContent = "重命名页面";
       if (dom.renamePageInput) dom.renamePageInput.value = "";
     };
 
-    const openRenameDialog = (pageName) => {
+    const openInputDialog = (pageName, action, title, inputValue) => {
       const page = wiki.sanitizeName(pageName);
       if (!page || !dom.renameDialogBackdrop || !dom.renamePageInput) return;
       dom.renameDialogBackdrop.dataset.page = page;
-      dom.renamePageInput.value = page;
+      dom.renameDialogBackdrop.dataset.action = action;
+      if (dom.renameDialogTitle) dom.renameDialogTitle.textContent = title;
+      dom.renamePageInput.value = String(inputValue ?? "");
       dom.renameDialogBackdrop.classList.remove("hidden");
       requestAnimationFrame(() => {
         dom.renamePageInput.focus();
@@ -81,15 +98,28 @@ export function createWikiBindings() {
       });
     };
 
-    const submitRenameDialog = () => {
+    const openRenameDialog = (pageName) => {
+      const currentTitle = state.pages[pageName] ? (state.pages[pageName].title || pageName) : pageName;
+      openInputDialog(pageName, "rename", "重命名页面", currentTitle);
+    };
+
+    const openSortDialog = (pageName, currentSort) => {
+      openInputDialog(pageName, "sort", "设置排序值", String(currentSort ?? 0));
+    };
+
+    const submitInputDialog = () => {
       if (!dom.renameDialogBackdrop || !dom.renamePageInput) return;
       const page = wiki.sanitizeName(dom.renameDialogBackdrop.dataset.page);
+      const action = dom.renameDialogBackdrop.dataset.action || "rename";
       if (!page) {
         closeRenameDialog();
         return;
       }
-      const renamed = wiki.renamePage(page, dom.renamePageInput.value);
-      if (renamed) {
+      const value = dom.renamePageInput.value;
+      const success = action === "sort"
+        ? wiki.setPageSortKey(page, value)
+        : wiki.renamePage(page, value);
+      if (success) {
         closeRenameDialog();
         return;
       }
@@ -156,13 +186,6 @@ export function createWikiBindings() {
       wiki.renderPageList();
     });
 
-    dom.pageMenuOpenBtn.addEventListener("click", () => {
-      const page = getTargetPage();
-      if (!page) return;
-      wiki.openPage(page);
-      dom.pageItemMenu.style.display = "none";
-    });
-
     if (dom.pageMenuRenameBtn) {
       dom.pageMenuRenameBtn.addEventListener("click", () => {
         const page = getTargetPage();
@@ -180,7 +203,7 @@ export function createWikiBindings() {
 
     if (dom.renameDialogConfirmBtn) {
       dom.renameDialogConfirmBtn.addEventListener("click", () => {
-        submitRenameDialog();
+        submitInputDialog();
       });
     }
 
@@ -188,7 +211,7 @@ export function createWikiBindings() {
       dom.renamePageInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
-          submitRenameDialog();
+          submitInputDialog();
           return;
         }
         if (e.key === "Escape") {
@@ -232,27 +255,11 @@ export function createWikiBindings() {
       const page = getTargetPage();
       if (!page || !state.pages[page]) return;
       const current = Number(state.pages[page].sortKey ?? state.pages[page].order ?? 0);
-      const input = prompt(t("prompt.sortValue"), String(current));
-      if (input === null) return;
-      wiki.setPageSortKey(page, input);
       dom.pageItemMenu.style.display = "none";
-    });
-
-    dom.pageMenuMoveRootBtn.addEventListener("click", () => {
-      const page = getTargetPage();
-      if (!page) return;
-      if (!wiki.movePage(page, null)) return;
-      dom.pageItemMenu.style.display = "none";
+      requestAnimationFrame(() => openSortDialog(page, current));
     });
 
     dom.pageMenuDeleteBtn.addEventListener("click", () => {
-      const page = getTargetPage();
-      if (!page) return;
-      wiki.deletePageByName(page);
-      dom.pageItemMenu.style.display = "none";
-    });
-
-    dom.pageMenuDeleteKeepChildrenBtn.addEventListener("click", () => {
       const page = getTargetPage();
       if (!page) return;
       wiki.deletePageKeepChildrenByName(page);

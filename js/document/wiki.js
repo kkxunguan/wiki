@@ -133,13 +133,25 @@ export function createWiki() {
   }
 
   // 持久化当前页面树数据。
+  function buildPersistableRecords(source) {
+    const out = {};
+    Object.keys(source || {}).forEach((name) => {
+      const record = source[name];
+      if (!record) return;
+      const { restored, ...rest } = record;
+      out[name] = rest;
+    });
+    return out;
+  }
+
+  // 持久化当前页面树数据。
   function persistPages() {
-    savePages(STORAGE_KEY, state.pages);
+    savePages(STORAGE_KEY, buildPersistableRecords(state.pages));
   }
 
   // 持久化当前回收站数据。
   function persistTrash() {
-    saveJson(STORAGE_TRASH_KEY, state.trash);
+    saveJson(STORAGE_TRASH_KEY, buildPersistableRecords(state.trash));
   }
 
   // 规范化页面数据结构并修正非法父子关系。
@@ -148,6 +160,7 @@ export function createWiki() {
     const siblingCursor = { __root__: 0 };
     Object.keys(source || {}).forEach((name) => {
       const page = source[name] || {};
+      const normalizedTitle = stripRestoredSuffix(page.title || name) || name;
       // 对旧数据做兼容：优先 sortKey，其次 order，最后按遍历顺序兜底。
       const parentKey = page.parent || "__root__";
       const fallbackOrder = siblingCursor[parentKey] || 0;
@@ -156,10 +169,11 @@ export function createWiki() {
         : (Number.isFinite(Number(page.order)) ? Number(page.order) : fallbackOrder);
       siblingCursor[parentKey] = fallbackOrder + 1;
       out[name] = {
-        title: page.title || name,
+        title: normalizedTitle,
         content: sanitizeHtml(page.content || "<p></p>"),
         pageBackground: sanitizePageBackground(page.pageBackground),
         locked: Boolean(page.locked),
+        restored: false,
         parent: page.parent || null,
         sortKey: normalizedSortKey,
         order: normalizedSortKey
@@ -187,6 +201,7 @@ export function createWiki() {
         content: sanitizeHtml(item.content || "<p></p>"),
         pageBackground: sanitizePageBackground(item.pageBackground),
         locked: Boolean(item.locked),
+        restored: false,
         parent: item.parent || null,
         sortKey,
         order: sortKey,
@@ -256,6 +271,11 @@ export function createWiki() {
     return maxSortKey + 1;
   }
 
+  function isRootPage(name) {
+    const clean = sanitizeName(name);
+    return Boolean(clean && state.pages[clean] && !state.pages[clean].parent);
+  }
+
   // 判断 candidateParent 是否为 nodeName 的后代（用于防环）。
   function isDescendant(candidateParent, nodeName) {
     if (!candidateParent || !nodeName || !state.pages[candidateParent] || !state.pages[nodeName]) return false;
@@ -270,13 +290,18 @@ export function createWiki() {
   }
 
   // 生成页面树路径文本（祖先 / 当前页）。
+  function getPageDisplayName(name) {
+    if (!state.pages[name]) return name;
+    return sanitizeName(state.pages[name].title) || name;
+  }
+
   function buildPagePath(name) {
     if (!state.pages[name]) return name;
-    const segs = [name];
+    const segs = [getPageDisplayName(name)];
     let p = state.pages[name].parent;
     const seen = new Set([name]);
     while (p && state.pages[p] && !seen.has(p)) {
-      segs.unshift(p);
+      segs.unshift(getPageDisplayName(p));
       seen.add(p);
       p = state.pages[p].parent;
     }
@@ -374,8 +399,11 @@ export function createWiki() {
       const sortKey = Number.isFinite(Number(page.sortKey))
         ? Number(page.sortKey)
         : (Number.isFinite(Number(page.order)) ? Number(page.order) : 0);
+      const displayName = getPageDisplayName(name);
       const nameEl = document.createElement("span");
-      nameEl.textContent = page.locked ? `${name} ${t("wiki.pageLockedTag")}` : name;
+      const restoredTag = page.restored ? `（${t("page.restoreSuffix")}）` : "";
+      const lockedTag = page.locked ? ` ${t("wiki.pageLockedTag")}` : "";
+      nameEl.textContent = `${displayName}${restoredTag}${lockedTag}`;
       const metaEl = document.createElement("span");
       metaEl.className = "meta-text";
       metaEl.textContent = t("wiki.pageMeta", { count: wc, sortKey });
@@ -441,6 +469,7 @@ export function createWiki() {
       content: sanitizeHtml(content),
       pageBackground: PAGE_BG_DEFAULT,
       locked: false,
+      restored: false,
       parent: safeParent,
       sortKey,
       order: sortKey
@@ -549,6 +578,11 @@ export function createWiki() {
     const cleanName = sanitizeName(name);
     if (!cleanName || !state.pages[cleanName]) return false;
     const cleanParent = sanitizeName(targetParent) || null;
+    const currentParent = state.pages[cleanName].parent || null;
+    if (cleanParent === null) {
+      if (!currentParent) return setStatus(t("status.alreadyTop")), false;
+      return setStatus(t("error.childPageCannotMoveRoot")), false;
+    }
     if (cleanParent === cleanName) return setStatus(t("error.parentCannotSelf")), false;
     if (cleanParent && !state.pages[cleanParent]) return setStatus(t("error.targetParentMissing")), false;
     if (cleanParent && isDescendant(cleanParent, cleanName)) return setStatus(t("error.moveToDescendant")), false;
@@ -565,25 +599,19 @@ export function createWiki() {
 
   // 重命名页面，并同步修正子页面 parent 指向。
   function renamePage(name, newName) {
-    const oldName = sanitizeName(name);
-    const nextName = sanitizeName(newName);
-    if (!oldName || !state.pages[oldName]) return false;
-    if (!nextName) return setStatus(t("error.pageNameRequired")), false;
-    if (oldName === nextName) return true;
-    if (state.pages[nextName]) return setStatus(t("error.pageExists", { name: nextName })), false;
+    const pageName = sanitizeName(name);
+    const nextTitle = sanitizeName(newName);
+    if (!pageName || !state.pages[pageName]) return false;
+    if (!nextTitle) return setStatus(t("error.pageNameRequired")), false;
 
-    const oldData = state.pages[oldName];
-    delete state.pages[oldName];
-    state.pages[nextName] = { ...oldData, title: nextName };
-    Object.keys(state.pages).forEach((n) => {
-      if (state.pages[n].parent === oldName) state.pages[n].parent = nextName;
-    });
-    if (state.currentPage === oldName) state.currentPage = nextName;
-    if (state.selectedPage === oldName) state.selectedPage = nextName;
+    const oldTitle = getPageDisplayName(pageName);
+    if (oldTitle === nextTitle) return true;
+
+    state.pages[pageName].title = nextTitle;
     normalizeAllSiblingOrders(state.pages);
     persistPages();
     renderPageList();
-    setStatus(t("status.renamed", { oldName, newName: nextName }));
+    setStatus(t("status.renamed", { oldName: oldTitle, newName: nextTitle }));
     return true;
   }
 
@@ -603,13 +631,41 @@ export function createWiki() {
   }
 
   // 生成恢复时不冲突的新页面名。
+  function stripRestoredSuffix(name) {
+    let clean = sanitizeName(name);
+    if (!clean) return clean;
+    const suffixMatcher = /[（(](?:已恢复|恢复)\d*[）)]$/;
+    while (suffixMatcher.test(clean)) clean = clean.replace(suffixMatcher, "").trim();
+    return clean;
+  }
+
+  function uniqueTrashName(baseName, used = null) {
+    const usedSet = used || new Set();
+    const base = stripRestoredSuffix(baseName) || t("page.unnamed");
+    let candidate = base;
+    let idx = 2;
+    while (usedSet.has(candidate) || state.trash[candidate]) {
+      candidate = `${base}（${idx}）`;
+      idx += 1;
+    }
+    usedSet.add(candidate);
+    return candidate;
+  }
+
   function uniqueRestoredName(baseName, used) {
-    let name = sanitizeName(baseName) || t("page.unnamed");
-    if (!used.has(name) && !state.pages[name]) return name;
-    let idx = 1;
+    let name = stripRestoredSuffix(baseName) || t("page.unnamed");
     const restoreSuffix = t("page.restoreSuffix");
-    while (used.has(`${name}(${restoreSuffix}${idx > 1 ? idx : ""})`) || state.pages[`${name}(${restoreSuffix}${idx > 1 ? idx : ""})`]) idx += 1;
-    return `${name}(${restoreSuffix}${idx > 1 ? idx : ""})`;
+
+    const restoredName = `${name}（${restoreSuffix}）`;
+    if (!used.has(restoredName) && !state.pages[restoredName]) return restoredName;
+
+    let idx = 2;
+    let candidate = `${name}（${restoreSuffix}${idx}）`;
+    while (used.has(candidate) || state.pages[candidate]) {
+      idx += 1;
+      candidate = `${name}（${restoreSuffix}${idx}）`;
+    }
+    return candidate;
   }
 
   // 恢复回收站中同一 root 的整棵页面子树。
@@ -638,11 +694,13 @@ export function createWiki() {
       const parent = node.parent;
       const restoredParent = parent && nameMap[parent] ? nameMap[parent] : (parent && state.pages[parent] ? parent : null);
       const restoredSortKey = nextSortKeyForParent(restoredParent);
+      const restoredTitle = stripRestoredSuffix(node.title || node.oldName) || newName;
       state.pages[newName] = {
-        title: newName,
+        title: restoredTitle,
         content: node.content || "<p></p>",
         pageBackground: sanitizePageBackground(node.pageBackground),
         locked: Boolean(node.locked),
+        restored: true,
         parent: restoredParent,
         sortKey: restoredSortKey,
         order: restoredSortKey
@@ -679,24 +737,34 @@ export function createWiki() {
   function deletePageByName(name) {
     const clean = sanitizeName(name);
     if (!clean || !state.pages[clean]) return false;
+    if (isRootPage(clean)) return setStatus(t("error.rootPageCannotDelete")), false;
 
     const subtree = collectSubtree(clean);
+    const usedTrashNames = new Set();
+    const trashNameMap = {};
+    subtree.forEach(({ name: pageName }) => {
+      trashNameMap[pageName] = uniqueTrashName(pageName, usedTrashNames);
+    });
+    const trashRootName = trashNameMap[clean];
     // 先将整棵子树镜像写入回收站，再删除原页面，保证可恢复。
     subtree.forEach(({ name: pageName, depth }) => {
       const page = state.pages[pageName];
-      state.trash[pageName] = {
+      const trashName = trashNameMap[pageName];
+      const parentInTrash = page.parent && trashNameMap[page.parent] ? trashNameMap[page.parent] : (page.parent || null);
+      state.trash[trashName] = {
         title: page.title || pageName,
         content: page.content || "<p></p>",
         pageBackground: sanitizePageBackground(page.pageBackground),
         locked: Boolean(page.locked),
-        parent: page.parent || null,
+        restored: Boolean(page.restored),
+        parent: parentInTrash,
         sortKey: Number.isFinite(Number(page.sortKey))
           ? Number(page.sortKey)
           : (Number.isFinite(Number(page.order)) ? Number(page.order) : 0),
         order: Number.isFinite(Number(page.sortKey))
           ? Number(page.sortKey)
           : (Number.isFinite(Number(page.order)) ? Number(page.order) : 0),
-        root: clean,
+        root: trashRootName,
         depth,
         deletedAt: new Date().toISOString()
       };
@@ -723,6 +791,7 @@ export function createWiki() {
   function deletePageKeepChildrenByName(name) {
     const clean = sanitizeName(name);
     if (!clean || !state.pages[clean]) return false;
+    if (isRootPage(clean)) return setStatus(t("error.rootPageCannotDelete")), false;
 
     const current = state.pages[clean];
     const parent = current.parent || null;
@@ -744,11 +813,13 @@ export function createWiki() {
     });
 
     // 仅将当前节点放入回收站（不含其子节点）。
-    state.trash[clean] = {
+    const trashName = uniqueTrashName(clean);
+    state.trash[trashName] = {
       title: current.title || clean,
       content: current.content || "<p></p>",
       pageBackground: sanitizePageBackground(current.pageBackground),
       locked: Boolean(current.locked),
+      restored: Boolean(current.restored),
       parent: current.parent || null,
       sortKey: Number.isFinite(Number(current.sortKey))
         ? Number(current.sortKey)
@@ -756,7 +827,7 @@ export function createWiki() {
       order: Number.isFinite(Number(current.sortKey))
         ? Number(current.sortKey)
         : (Number.isFinite(Number(current.order)) ? Number(current.order) : 0),
-      root: clean,
+      root: trashName,
       depth: 0,
       deletedAt: new Date().toISOString()
     };

@@ -325,6 +325,13 @@ button:hover, select:hover, .page-item:hover { border-color: var(--accent); }
 }
 .context-menu button { width: 100%; text-align: left; padding: 6.4px 8px; border: none; background: transparent; color: inherit; border-radius: 6.4px; }
 .context-menu button:hover { background: rgba(255, 255, 255, 0.12); }
+.context-menu button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.context-menu button:disabled:hover {
+  background: transparent;
+}
 .dialog-backdrop {
   position: fixed;
   inset: 0;

@@ -59,7 +59,7 @@ export function createSearchBindings() {
       resultBtn.className = "search-result-item";
       resultBtn.dataset.searchIndex = String(index);
       resultBtn.innerHTML = `
-        <div class="search-result-title">${escapeHtml(item.pageName)}<span class="search-result-count">${escapeHtml(t("search.resultMatch", { index: item.occurrence + 1 }))}</span></div>
+        <div class="search-result-title">${escapeHtml(item.displayName || item.pageName)}<span class="search-result-count">${escapeHtml(t("search.resultMatch", { index: item.occurrence + 1 }))}</span></div>
         <div class="search-result-snippet">${item.snippetHtml}</div>
       `;
       dom.globalSearchResults.appendChild(resultBtn);

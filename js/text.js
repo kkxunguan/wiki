@@ -19,6 +19,8 @@ const messages = {
   "error.searchPageMissing": "页面不存在：{page}",
   "error.sortMustBeNumber": "排序值必须是数字",
   "error.targetParentMissing": "目标父级不存在",
+  "error.rootPageCannotDelete": "根页面不允许删除",
+  "error.childPageCannotMoveRoot": "子页面不允许置顶到根级",
   "error.trashPreviewReadOnlyMode": "回收站预览仅支持阅读模式",
   "error.trashPreviewLockToggle": "回收站预览下不可切换页面锁定",
   "error.trashPreviewReadOnlySave": "回收站预览不可保存",
@@ -32,7 +34,7 @@ const messages = {
 
   "page.defaultPrefix": "页面",
   "page.home": "首页",
-  "page.restoreSuffix": "恢复",
+  "page.restoreSuffix": "已恢复",
   "page.unnamed": "未命名",
   "page.usage": "使用说明",
 
