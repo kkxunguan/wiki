@@ -17,6 +17,7 @@ export const dom = {
 
   pageItemMenu: document.getElementById("pageItemMenu"),
   pageMenuOpenBtn: document.getElementById("pageMenuOpenBtn"),
+  pageMenuRenameBtn: document.getElementById("pageMenuRenameBtn"),
   pageMenuNewChildBtn: document.getElementById("pageMenuNewChildBtn"),
   pageMenuSortUpBtn: document.getElementById("pageMenuSortUpBtn"),
   pageMenuSortDownBtn: document.getElementById("pageMenuSortDownBtn"),
@@ -28,6 +29,11 @@ export const dom = {
   trashItemMenu: document.getElementById("trashItemMenu"),
   trashMenuRestoreBtn: document.getElementById("trashMenuRestoreBtn"),
   trashMenuDeleteBtn: document.getElementById("trashMenuDeleteBtn"),
+  renameDialogBackdrop: document.getElementById("renameDialogBackdrop"),
+  renameDialog: document.getElementById("renameDialog"),
+  renamePageInput: document.getElementById("renamePageInput"),
+  renameDialogCancelBtn: document.getElementById("renameDialogCancelBtn"),
+  renameDialogConfirmBtn: document.getElementById("renameDialogConfirmBtn"),
 
   counter: document.getElementById("counter"),
   statusEl: document.getElementById("status"),

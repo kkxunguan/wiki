@@ -62,6 +62,43 @@ export function createWikiBindings() {
     // 读取右键菜单当前对应的页面名。
     const getTargetPage = () => wiki.sanitizeName(dom.pageItemMenu.dataset.page);
 
+    const closeRenameDialog = () => {
+      if (!dom.renameDialogBackdrop) return;
+      dom.renameDialogBackdrop.classList.add("hidden");
+      dom.renameDialogBackdrop.dataset.page = "";
+      if (dom.renamePageInput) dom.renamePageInput.value = "";
+    };
+
+    const openRenameDialog = (pageName) => {
+      const page = wiki.sanitizeName(pageName);
+      if (!page || !dom.renameDialogBackdrop || !dom.renamePageInput) return;
+      dom.renameDialogBackdrop.dataset.page = page;
+      dom.renamePageInput.value = page;
+      dom.renameDialogBackdrop.classList.remove("hidden");
+      requestAnimationFrame(() => {
+        dom.renamePageInput.focus();
+        dom.renamePageInput.select();
+      });
+    };
+
+    const submitRenameDialog = () => {
+      if (!dom.renameDialogBackdrop || !dom.renamePageInput) return;
+      const page = wiki.sanitizeName(dom.renameDialogBackdrop.dataset.page);
+      if (!page) {
+        closeRenameDialog();
+        return;
+      }
+      const renamed = wiki.renamePage(page, dom.renamePageInput.value);
+      if (renamed) {
+        closeRenameDialog();
+        return;
+      }
+      requestAnimationFrame(() => {
+        dom.renamePageInput.focus();
+        dom.renamePageInput.select();
+      });
+    };
+
     // 清除编辑器选区与光标，避免树节点操作与编辑区冲突。
     const clearEditorCaret = () => {
       const selection = window.getSelection();
@@ -105,11 +142,13 @@ export function createWikiBindings() {
     document.addEventListener("click", (e) => {
       const clickedInPageMenu = Boolean(e.target.closest("#pageItemMenu"));
       const clickedInTrashMenu = Boolean(e.target.closest("#trashItemMenu"));
+      const clickedInRenameDialog = Boolean(e.target.closest("#renameDialogBackdrop"));
       if (!clickedInPageMenu && dom.pageItemMenu) dom.pageItemMenu.style.display = "none";
       if (!clickedInTrashMenu && dom.trashItemMenu) dom.trashItemMenu.style.display = "none";
 
       if (!state.selectedPage) return;
       if (modes.getTreeMode() !== "pages") return;
+      if (clickedInRenameDialog) return;
       if (e.target.closest(".main")) return;
       if (e.target.closest(".page-item")) return;
       if (clickedInPageMenu) return;
@@ -123,6 +162,47 @@ export function createWikiBindings() {
       wiki.openPage(page);
       dom.pageItemMenu.style.display = "none";
     });
+
+    if (dom.pageMenuRenameBtn) {
+      dom.pageMenuRenameBtn.addEventListener("click", () => {
+        const page = getTargetPage();
+        dom.pageItemMenu.style.display = "none";
+        if (!page) return;
+        requestAnimationFrame(() => openRenameDialog(page));
+      });
+    }
+
+    if (dom.renameDialogCancelBtn) {
+      dom.renameDialogCancelBtn.addEventListener("click", () => {
+        closeRenameDialog();
+      });
+    }
+
+    if (dom.renameDialogConfirmBtn) {
+      dom.renameDialogConfirmBtn.addEventListener("click", () => {
+        submitRenameDialog();
+      });
+    }
+
+    if (dom.renamePageInput) {
+      dom.renamePageInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          submitRenameDialog();
+          return;
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          closeRenameDialog();
+        }
+      });
+    }
+
+    if (dom.renameDialogBackdrop) {
+      dom.renameDialogBackdrop.addEventListener("click", (e) => {
+        if (e.target === dom.renameDialogBackdrop) closeRenameDialog();
+      });
+    }
 
     dom.pageMenuNewChildBtn.addEventListener("click", () => {
       const parent = getTargetPage();
