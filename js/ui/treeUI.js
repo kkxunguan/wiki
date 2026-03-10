@@ -26,7 +26,13 @@ export function createWikiBindings() {
         setStatus(t("error.cannotCreateInTrashView"));
         return;
       }
-      const parent = state.selectedPage && state.pages[state.selectedPage] ? state.selectedPage : null;
+      const parent = state.selectedPage && state.pages[state.selectedPage]
+        ? state.selectedPage
+        : (state.currentPage && state.pages[state.currentPage] ? state.currentPage : "");
+      if (!parent) {
+        setStatus(t("error.openOrCreateFirst"));
+        return;
+      }
       const name = wiki.createAutoPage(parent, t("page.defaultPrefix"));
       if (!name) return;
       wiki.openPage(name);

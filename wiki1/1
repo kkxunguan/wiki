@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link rel="stylesheet" href="lib/wangeditor/style.css">
+<style>
+  #editor—wrapper {
+    border: 1px solid #ccc;
+    z-index: 100; /* 按需定义 */
+  }
+  #toolbar-container {
+    border-bottom: 1px solid #ccc;
+  }
+  #editor-container {
+    height: 500px;
+  }
+</style>
+</head>
+
+<body>
+  <div id="editor—wrapper">
+    <div id="toolbar-container"><!-- 工具栏 --></div>
+    <div id="editor-container"><!-- 编辑器 --></div>
+  </div>
+
+  <div id="example1" class="list-group col">
+    <div class="list-group-item">Item 1</div>
+    <div class="list-group-item">Item 2</div>
+    <div class="list-group-item">Item 3</div>
+    <div class="list-group-item">Item 4</div>
+    <div class="list-group-item">Item 5</div>
+    <div class="list-group-item">Item 6</div>
+  </div>
+  <script src="lib/Sortable.js"></script>
+  <script src="lib/wangeditor/index.js"></script>
+  <script>
+    new Sortable(example1, {
+      animation: 150,
+      ghostClass: 'blue-background-class'
+    });
+
+    const { createEditor, createToolbar } = window.wangEditor
+
+    const editorConfig = {
+      placeholder: 'Type here...',
+      onChange(editor) {
+        const html = editor.getHtml()
+        console.log('editor content', html)
+        // 也可以同步到 <textarea>
+      },
+    }
+
+    const editor = createEditor({
+      selector: '#editor-container',
+      html: '<p><br></p>',
+      config: editorConfig,
+      mode: 'default', // or 'simple'
+    })
+
+    const toolbarConfig = {}
+
+    const toolbar = createToolbar({
+      editor,
+      selector: '#toolbar-container',
+      config: toolbarConfig,
+      mode: 'default', // or 'simple'
+    })
+  </script>
+</body>
+
+</html>

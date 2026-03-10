@@ -1,0 +1,477 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wiki 编辑后台</title>
+  <link rel="stylesheet" href="lib/wangeditor/style.css">
+  <style>
+    :root {
+      --bg-main: #eef2f8;
+      --bg-sidebar: #edf2fa;
+      --bg-workspace: #f8fbff;
+      --line: #d3ddea;
+      --line-soft: #e3e9f3;
+      --primary: #2f6fda;
+      --primary-weak: #dce8ff;
+      --text-main: #1e2f45;
+      --text-muted: #5b6f89;
+      --text-soft: #7f8fa6;
+      --surface: #ffffff;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      outline: 1px solid red;
+    }
+
+    html,
+    body {
+
+      height: 100%;
+      color: var(--text-main);
+    }
+
+    .app {
+      display: flex;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: 240px;
+      border-right: 1px solid var(--line);
+      background:
+        linear-gradient(180deg, #edf2fa 0, #edf1f8 45%, #e9edf5 100%);
+      box-shadow: inset -1px 0 0 #f8fbff;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel {
+      padding: 12px;
+      border-top: 1px solid var(--line-soft);
+      animation: panel-enter .45s ease both;
+    }
+
+    .panel h2 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+
+    .panel h2.title {
+      color: #607189;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+
+    .new-page-btn {
+      width: 100%;
+      border: none;
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 12px;
+      color: #fff;
+      background: #1d6ee8;
+      cursor: pointer;
+    }
+
+    .new-page-btn:hover {
+      filter: brightness(1.04);
+    }
+
+    .tips-text {
+      color: #607189;
+      line-height: 1.5;
+      font-size: 10px;
+    }
+
+    .tabs {
+      margin-top: 14px;
+      margin-bottom: 10px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .tab-btn {
+      border: 1px solid #d6dfef;
+      font-size: 10px;
+      background: #f6f8fc;
+      color: #1f2a39;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 6px;
+    }
+
+    .tab-btn.active {
+      border-color: #1d6ee8;
+      color: #0f4fb3;
+      background: #e9f1ff;
+      font-weight: 600;
+    }
+
+    .search-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      padding-bottom: 8px;
+    }
+
+    .search-input {
+      width: 100%;
+      border: 1px solid #c8d3e4;
+      border-radius: 10px;
+      background: #f5f8fd;
+      color: #2c4466;
+      font-size: 16px;
+      padding: 10px 12px;
+      outline: none;
+    }
+
+    .search-input:focus {
+      border-color: #8ab2ff;
+      box-shadow: 0 0 0 3px rgba(60, 115, 209, 0.14);
+    }
+
+    .clear-btn {
+      border: 1px solid #cad7ea;
+      border-radius: 10px;
+      background: #f8fbff;
+      font-size: 15px;
+      font-weight: 600;
+      color: #29508a;
+      padding: 0 12px;
+      cursor: pointer;
+    }
+
+    .tree-panel {
+      flex: 1;
+      overflow: auto;
+      padding: 8px 0 14px;
+    }
+
+    .tree-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .tree-item {
+      margin: 3px 10px;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      padding: 12px 14px;
+      background: transparent;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      font-size: 17px;
+      transition: 0.2s ease;
+      cursor: grab;
+    }
+
+    .tree-item .title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #18375f;
+      font-weight: 600;
+    }
+
+    .tree-item .meta {
+      color: #58739a;
+      font-size: 15px;
+      white-space: nowrap;
+    }
+
+    .tree-item.sub-page {
+      margin-left: 20px;
+      margin-right: 20px;
+    }
+
+    .tree-item.active {
+      border-color: #2f70da;
+      background: #e6efff;
+      box-shadow: 0 10px 20px rgba(53, 104, 193, 0.08);
+    }
+
+    .tree-item:not(.active):hover {
+      border-color: #d2dded;
+      background: #f6f9ff;
+    }
+
+    .tree-item-ghost {
+      opacity: 0.6;
+      background: #dbe7ff;
+      border-color: #94b5f3;
+    }
+
+    .tree-item-chosen {
+      cursor: grabbing;
+    }
+
+    .workspace {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(180deg, #f8fbff 0, #f4f8ff 30%, #f1f5fc 100%);
+    }
+
+    .workspace-header {
+      min-height: 66px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 18px;
+      background: #f6f9fe;
+    }
+
+    .workspace-title {
+      margin: 0;
+      color: #315a8e;
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    .lock-btn {
+      border: 1px solid #bfcfe7;
+      background: #f9fbff;
+      color: #34557f;
+      padding: 8px 16px;
+      border-radius: 12px;
+      font-size: 17px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .editor-wrapper {
+      margin: 12px 14px 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+      animation: panel-enter .5s .1s ease both;
+    }
+
+    #toolbar-container {
+      border-bottom: 1px solid var(--line-soft);
+      background: #fbfcff;
+      min-height: 68px;
+    }
+
+    #editor-container {
+      flex: 1;
+      min-height: 520px;
+      background: #f2f4f8;
+    }
+
+    #editor-container .w-e-text-container {
+      background: #f2f4f8;
+    }
+
+    #editor-container .w-e-text-container [data-slate-editor] {
+      padding: 28px 18px 18px;
+      line-height: 1.8;
+      font-size: 16px;
+      color: #182f4b;
+    }
+
+    #editor-container .w-e-text-container [data-slate-editor] h1 {
+      font-size: 52px;
+      margin: 0 0 12px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      color: #0d2744;
+    }
+
+    #editor-container .w-e-text-container [data-slate-editor] p {
+      margin: 10px 0;
+    }
+
+    .editor-footer {
+      border-top: 1px solid var(--line-soft);
+      background: #f7faff;
+      color: #4f698c;
+      font-size: 15px;
+      padding: 9px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .editor-footer span:last-child {
+      margin-left: auto;
+    }
+
+    @keyframes panel-enter {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <section class="panel">
+        <h2>Wiki 页面树</h2>
+        <button class="new-page-btn" type="button">+ 新建页面</button>
+        <h2 class="title">操作提示</h2>
+        <p class="tips-text">
+          右键可重命名/删除/新建子页；拖拽页面到目标页可调整层级，顺序请使用右键排序操作。
+        </p>
+        <div class="tabs">
+          <button class="tab-btn active" type="button">页面</button>
+          <button class="tab-btn" type="button">回收站</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>全局搜索</h2>
+        <div class="search-row">
+          <input id="page-search" class="search-input" type="text" placeholder="输入关键词搜索全部页面">
+          <button id="clear-search" class="clear-btn" type="button">清空</button>
+        </div>
+      </section>
+
+      <section class="tree-panel">
+        <ul id="page-tree-list" class="tree-list">
+          <li class="tree-item active" data-title="大侠立志传">
+            <span class="title">大侠立志传</span>
+            <span class="meta">424字 / 排序0</span>
+          </li>
+          <li class="tree-item sub-page" data-title="新手入门">
+            <span class="title">新手入门</span>
+            <span class="meta">3字 / 排序0</span>
+          </li>
+          <li class="tree-item sub-page" data-title="无名地区流程攻略">
+            <span class="title">无名地区流程攻略</span>
+            <span class="meta">0字 / 排序1</span>
+          </li>
+        </ul>
+      </section>
+    </aside>
+
+    <main class="workspace">
+      <header class="workspace-header">
+        <h1 class="workspace-title">大侠立志传</h1>
+        <button class="lock-btn" type="button">锁定页面</button>
+      </header>
+
+      <div class="editor-wrapper">
+        <div id="toolbar-container"></div>
+        <div id="editor-container"></div>
+        <footer class="editor-footer">
+          <span id="word-count">0 字</span>
+          <span>使用 WangEditor 工具栏进行富文本编辑。</span>
+          <span id="save-status">已自动保存: --:--:--</span>
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <script src="lib/Sortable.js"></script>
+  <script src="lib/wangeditor/index.js"></script>
+  <script>
+    const { createEditor, createToolbar } = window.wangEditor;
+
+    const pageSearchInput = document.getElementById("page-search");
+    const clearSearchBtn = document.getElementById("clear-search");
+    const treeItems = Array.from(document.querySelectorAll(".tree-item"));
+    const wordCountEl = document.getElementById("word-count");
+    const saveStatusEl = document.getElementById("save-status");
+    const workspaceTitleEl = document.querySelector(".workspace-title");
+
+    const initialHtml = `
+      <h1>关于《大侠立志传·碧血丹心》百科</h1>
+      <p>《大侠立志传：碧血丹心》是一款开放世界武侠RPG游戏，更是一款像素版江湖生存模拟器，站在一个初出茅庐的市井小人物视角，还原在江湖底层摸爬滚打、最终脱颖而出的逆袭经历。</p>
+      <p>游戏目前在PC平台（Steam）和手机平台（TapTap / App Store）均已发售。</p>
+      <p><strong>最新资讯</strong></p>
+      <p>◆ 《大侠立志传》9月20日手机版正式发售。手机版的大侠需要在更新后，通过游戏右上角的【扩展包】按钮进入DLC界面，然后点击【免费获取】按钮即可领取对应的免费DLC。</p>
+      <p>《大侠立志传外传》已登录 Steam，暂定 2026 年发售。如果是大侠系列玩家，或者是武侠题材爱好者，可以先把游戏加入愿望单。</p>
+      <p>《大侠立志传》手机端自9月16日至10月7日享有折扣优惠，折后18元。</p>
+      <p>3个已经在PC端发售的DLC此次也与本体一同于手机端发售：</p>
+      <ul>
+        <li>DLC《一统江湖》售价6元</li>
+        <li>DLC《倩影萍踪》售价8元</li>
+        <li>DLC《新颜绘梦》售价9.9元</li>
+        <li>免费DLC《祸起蓬莱》现已上架</li>
+        <li>免费DLC《清风遗痕》现已上架</li>
+      </ul>
+    `;
+
+    const getCleanTextLength = (editor) => editor.getText().replace(/\s+/g, "").length;
+    const updateFooter = (editor) => {
+      wordCountEl.textContent = `${getCleanTextLength(editor)} 字`;
+      saveStatusEl.textContent = `已自动保存: ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}`;
+    };
+
+    const editor = createEditor({
+      selector: "#editor-container",
+      html: initialHtml,
+      config: {
+        placeholder: "请输入页面内容...",
+        onCreated(currentEditor) {
+          updateFooter(currentEditor);
+        },
+        onChange(currentEditor) {
+          updateFooter(currentEditor);
+        }
+      },
+      mode: "default"
+    });
+
+    createToolbar({
+      editor,
+      selector: "#toolbar-container",
+      config: {},
+      mode: "default"
+    });
+
+    new Sortable(document.getElementById("page-tree-list"), {
+      animation: 180,
+      chosenClass: "tree-item-chosen",
+      ghostClass: "tree-item-ghost"
+    });
+
+    pageSearchInput.addEventListener("input", (event) => {
+      const keyword = event.target.value.trim();
+      treeItems.forEach((item) => {
+        item.style.display = keyword && !item.dataset.title.includes(keyword) ? "none" : "";
+      });
+    });
+
+    clearSearchBtn.addEventListener("click", () => {
+      pageSearchInput.value = "";
+      treeItems.forEach((item) => {
+        item.style.display = "";
+      });
+      pageSearchInput.focus();
+    });
+
+    treeItems.forEach((item) => {
+      item.addEventListener("click", () => {
+        treeItems.forEach((entry) => entry.classList.remove("active"));
+        item.classList.add("active");
+        workspaceTitleEl.textContent = item.dataset.title;
+      });
+    });
+  </script>
+</body>
+
+</html>
