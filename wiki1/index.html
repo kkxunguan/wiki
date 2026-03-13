@@ -129,28 +129,28 @@
 
 <body>
   <aside>
-  <p>
+    <p>
 
-    <input type="text" placeholder="新建页面标题" id="pageName1"><button id="createPage">创建</button>
-  </p>
+      <input type="text" placeholder="新建页面标题" id="pageName1"><button id="createPage">创建</button>
+    </p>
 
-  <ul id="tree"></ul>
+    <ul id="tree"></ul>
   </aside>
-  
-<section>
 
-  <p>页面标题：<input type="text" id="pageName2">父亲节点：<input type="text" id="parent"></p>
-  <div id="editor—wrapper">
-    <div id="toolbar-container"><!-- 工具栏 --></div>
-    <div id="editor-container"><!-- 编辑器 --></div>
-  </div>
+  <section>
 
-  <button id="savePage">保存</button>
-</section>
-   
+    <p>页面标题：<input type="text" id="pageName2">父节点：<input type="text" id="parent"></p>
+    <div id="editor—wrapper">
+      <div id="toolbar-container"><!-- 工具栏 --></div>
+      <div id="editor-container"><!-- 编辑器 --></div>
+    </div>
+
+    <button id="savePage">保存</button>
+  </section>
 
 
-  
+
+
 
 
   <script src="lib/wangeditor/index.js"></script>
@@ -161,6 +161,12 @@
 
     const editorConfig = {
       placeholder: 'Type here...',
+      MENU_CONF: {
+        uploadImage: {
+          fieldName: 'your-fileName',
+          base64LimitSize: 10 * 1024 * 1024 // 10M 以下插入 base64
+        }
+      },
       onChange(editor) {
         const html = editor.getHtml()
         console.log('editor content', html)
@@ -204,7 +210,7 @@
         ]
       },
       {
-        name: "图片",
+        name: "文档",
         content: "<p>图片<br></p>",
         children: [
           { name: "logo.png", content: "<p>logo<br></p>" },
@@ -217,7 +223,7 @@
 
     function renderTree(nodes, container) {
 
-      nodes.forEach(node => {
+      nodes.forEach((node, index) => {
 
         const li = document.createElement("li")
 
@@ -227,6 +233,9 @@
         const title = document.createElement("span")
         title.className = "node"
         title.textContent = node.name
+
+        console.log(index) // 当前节点在本层的下标
+
         // ⭐ 保存 node 数据
         title._node = node
 
@@ -251,6 +260,8 @@
           const nodeData = title._node
 
           editor.setHtml(nodeData.content)
+
+          document.getElementById("parent").value = nodeData.name
         }
 
         if (node.children && node.children.length) {
